@@ -8,6 +8,7 @@ import torch
 import torch.onnx
 from pydantic import BaseModel
 from torch import nn
+import os
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -31,6 +32,7 @@ class LSTMClassifier(nn.Module):
     ):
         """Initialize the LSTM model."""
         super().__init__()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.hidden_size = hidden_size
         self.num_layers = num_layers
 
@@ -39,11 +41,11 @@ class LSTMClassifier(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward Pass Function."""
-        h_init = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
-        c_init = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        h_init = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device)
+        c_init = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device)
 
         # forward pass through LSTM layer, output shape: (batch_size, seq_length, hidden_size)
-        output, _ = self.lstm(x, (h_init, c_init))
+        output, _ = self.lstm(x.to(self.device), (h_init, c_init))
 
         return self.fully_connected(output[:, -1, :])
 
@@ -68,7 +70,7 @@ class TrainingPipeline:
     def __init__(self, configuration: dict):
         """Initialize the training pipeline."""
         self.configuration = TrainingConfig(**configuration)
-        self.run_id = str(uuid.uuid4())
+        self.run_id = Path(str(uuid.uuid4()))
         Path.mkdir(self.run_id, parents=True, exist_ok=True)
         self.model = LSTMClassifier(
             self.configuration.input_size,
@@ -90,6 +92,10 @@ class TrainingPipeline:
         :param filename: Name of the file to save the model.
         """
         self.model.eval()
+
+        if not os.path.exists("models"):
+            os.makedirs("models")
+
         torch.onnx.export(
             self.model,
             torch.randn(1, self.configuration.sequence_length, self.configuration.input_size),
@@ -112,12 +118,13 @@ class TrainingPipeline:
 
         :param x: Input data.
         :param y: Target data.
+        :return: DataLoader for training data.
         """
         train_data = torch.utils.data.TensorDataset(x, y)
         train_loader = torch.utils.data.DataLoader(
             dataset=train_data, batch_size=self.configuration.batch_size, shuffle=True
         )
-        return train_data, train_loader
+        return train_loader
 
     def evaluate(self, test_loader: torch.utils.data.DataLoader):
         """Evaluate the model."""
@@ -156,7 +163,7 @@ class TrainingPipeline:
         :param x: Input data.
         :param y: Target data.
         """
-        train_data, train_loader = self.make_dataloader(x, y)
+        train_loader = self.make_dataloader(x, y)
         self.train(train_loader)
 
         self.create_model_package(filename="./models/anomaly_detection.onnx")
