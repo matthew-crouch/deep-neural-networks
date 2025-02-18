@@ -48,7 +48,4 @@ def generate_anomaly_dataset(
         anomaly_categories = np.random.choice(["D", "E"], size=n_anomalies)
         df[f"cat_feature_{i}"] = np.concatenate([normal_categories, anomaly_categories])
 
-    # Add target column
-    df["target"] = y
-
-    return df
+    return df, y
