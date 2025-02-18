@@ -1,0 +1,5 @@
+huggingface
+datasets
+transformers==4.45.2
+evaluate
+transformers[torch]
