@@ -6,3 +6,11 @@ This repository contains various ideas, examples and information related to vari
 - Onnx
 - MlFlow
 - Huggingface
+
+## Topics Covered
+- Training and saving a LSTM for anomaly detection.
+    - Early Stopping
+    - Optimisation of DNN models using PyTorch
+- Loading and performing inference using Onnx and Rust.
+- Fine-Tuning LLMs using HuggingFace.
+- Parameter Efficient Fine Tuning.
