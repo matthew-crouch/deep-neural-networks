@@ -1,7 +1,7 @@
 """Module to generate anomaly detection dataset."""
 
 import numpy as np
-import pandas as pd
+import torch
 from sklearn.datasets import make_classification
 
 
@@ -11,26 +11,29 @@ def generate_anomaly_dataset(
     n_categorical: int = 3,
     anomaly_ratio: float = 0.02,
     random_state: int = 42,
-):
+    sequence_length: int = 5,
+    output_size: int = 2,
+) -> tuple([torch.Tensor, torch.Tensor]):
     """Generate anomaly detection dataset.
 
     Function to generate dataset that can be used for anomaly detection
 
-    :param n_samples: Total number of samples in the dataset.
+    :param n_samples: Total number of samples.
     :param n_features: Number of numerical features.
     :param n_categorical: Number of categorical features.
     :param anomaly_ratio: Fraction of anomalies (minority class).
     :param random_state: Random seed for reproducibility.
-    :return: A pandas DataFrame with numerical and categorical features, and a 'target' column.
+    :param sequence_length: Number of time steps per sequence.
+    :param output_size: Number of classes (for classification).
+    :return: (x, y) PyTorch tensors formatted for LSTM.
 
     """
     np.random.seed(random_state)
 
-    n_anomalies = int(n_samples * anomaly_ratio)
-    n_normal = n_samples - n_anomalies
+    adjusted_n_samples = (n_samples // sequence_length) * sequence_length
 
     # Generate numerical data
-    X, y = make_classification(
+    x, y = make_classification(
         n_samples=n_samples,
         n_features=n_features,
         n_informative=n_features,
@@ -40,12 +43,13 @@ def generate_anomaly_dataset(
         random_state=random_state,
     )
 
-    # Convert numerical data to DataFrame
-    df = pd.DataFrame(X, columns=[f"num_feature_{i}" for i in range(n_features)])
+    # Reshape for LSTM format: (batch_size, sequence_length, input_size)
+    batch_size = adjusted_n_samples // sequence_length
+    x = x.reshape(batch_size, sequence_length, n_features)
 
-    for i in range(n_categorical):
-        normal_categories = np.random.choice(["A", "B", "C"], size=n_normal, p=[0.5, 0.3, 0.2])
-        anomaly_categories = np.random.choice(["D", "E"], size=n_anomalies)
-        df[f"cat_feature_{i}"] = np.concatenate([normal_categories, anomaly_categories])
+    y = y.reshape(batch_size, sequence_length)
 
-    return df, y
+    x_tensor = torch.tensor(x, dtype=torch.float32)
+    y_tensor = torch.tensor(y, dtype=torch.long)
+
+    return x_tensor, y_tensor

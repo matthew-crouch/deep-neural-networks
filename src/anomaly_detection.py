@@ -1,12 +1,19 @@
 """LSTM model for anomaly detection."""
 
+import logging
+
 import torch
+import torch.onnx
 from pydantic import BaseModel
 from torch import nn
-import torch.onnx
-import onnx
-import pandas as pd
-from src.create_dataset import generate_anomaly_dataset
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
+)
+
+logger = logging.getLogger(__name__)
 
 
 class LSTMClassifier(nn.Module):
@@ -28,7 +35,7 @@ class LSTMClassifier(nn.Module):
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
         self.fully_connected = nn.Linear(hidden_size, output_size)
 
-    def foward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward Pass Function."""
         h_init = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
         c_init = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
@@ -69,11 +76,63 @@ class TrainingPipeline:
         self.optimizer = torch.optim.Adam(
             self.model.parameters(), lr=self.configuration.learning_rate
         )
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
 
     def _model_packaging(self, filename: str):
         """Package the model after training to onnx."""
         # torch.onnx.export(self.model, )
         return None
 
-    def run(self, data: pd.DataFrame):
-        """Run the training Pipeline"""
+    def make_dataloader(self, x: torch.Tensor, y: torch.Tensor):
+        """Create a DataLoader from the input data."""
+        train_data = torch.utils.data.TensorDataset(x, y)
+        train_loader = torch.utils.data.DataLoader(
+            dataset=train_data, batch_size=self.configuration.batch_size, shuffle=True
+        )
+        return train_data, train_loader
+
+    def evaluate(self, test_loader: torch.utils.data.DataLoader):
+        """Evaluate the model."""
+        self.model.eval()
+        with torch.no_grad():
+            correct = 0
+            total = 0
+            for data, labels in test_loader:
+                data, labels = data.to(self.device), labels.to(self.device)
+                outputs = self.model(data)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels[:, -1]).sum().item()
+
+            logger.info(f"Accuracy: {100 * correct / total}")
+
+    def train(self, train_loader: torch.utils.data.DataLoader):
+        """Train the model."""
+        self.model.train()
+        for epoch in range(self.configuration.num_epochs):
+            for _i, (data, labels) in enumerate(train_loader):
+                data, labels = data.to(self.device), labels.to(self.device)
+
+                # Forward Pass
+                outputs = self.model(data)
+
+                ## We only select the last timestep (not generalised for all solutions)
+                # This will only predict one label per sequence, not one per timestep.
+                loss = self.criterion(outputs, labels[:, -1])
+
+                # Backward Pass and Optimization
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+
+                logger.info(f"Epoch: {epoch}, Loss: {loss.item()}")
+
+    def run(self, x: torch.Tensor, y: torch.Tensor):
+        """Run the training Pipeline.
+
+        :param x: Input data.
+        :param y: Target data.
+        """
+        train_data, train_loader = self.make_dataloader(x, y)
+        self.train(train_loader)
