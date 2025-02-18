@@ -159,4 +159,4 @@ class TrainingPipeline:
         train_data, train_loader = self.make_dataloader(x, y)
         self.train(train_loader)
 
-        self.create_model_package(filename="anomaly_detection.onnx")
+        self.create_model_package(filename="./models/anomaly_detection.onnx")
