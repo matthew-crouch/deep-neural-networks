@@ -25,4 +25,5 @@ jobs:
 
     - name: Run tests
       run: |
+        export PYTHONPATH=".deep-neural-networks:${PYTHONPATH}"
         pytest -v -s -n 12

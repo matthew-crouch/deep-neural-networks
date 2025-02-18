@@ -9,6 +9,7 @@ def test_run_anomaly_detection():
     x, y = generate_anomaly_dataset(n_samples=100, n_features=10, random_state=42)
     config = {
         "input_size": x.shape[2],
+        "sequence_length": x.shape[1],
         "hidden_size": 64,
         "num_layers": 2,
         "output_size": 2,

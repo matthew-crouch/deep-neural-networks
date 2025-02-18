@@ -1,6 +1,8 @@
 """LSTM model for anomaly detection."""
 
 import logging
+import uuid
+from pathlib import Path
 
 import torch
 import torch.onnx
@@ -66,6 +68,8 @@ class TrainingPipeline:
     def __init__(self, configuration: dict):
         """Initialize the training pipeline."""
         self.configuration = TrainingConfig(**configuration)
+        self.run_id = str(uuid.uuid4())
+        Path.mkdir(self.run_id, parents=True, exist_ok=True)
         self.model = LSTMClassifier(
             self.configuration.input_size,
             self.configuration.hidden_size,
@@ -80,8 +84,11 @@ class TrainingPipeline:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
 
-    def create_model_package(self, filename: str):
-        """Package the model after training to onnx."""
+    def create_model_package(self, filename: str) -> None:
+        """Package the model after training to onnx.
+
+        :param filename: Name of the file to save the model.
+        """
         self.model.eval()
         torch.onnx.export(
             self.model,
@@ -96,8 +103,16 @@ class TrainingPipeline:
             opset_version=11,
         )
 
+    def model_checkpoint(self):
+        """Save the model checkpoint."""
+        torch.save(self.model.state_dict(), f"{self.run_id}/model_{uuid.uuid4()}.pth")
+
     def make_dataloader(self, x: torch.Tensor, y: torch.Tensor):
-        """Create a DataLoader from the input data."""
+        """Create a DataLoader from the input data.
+
+        :param x: Input data.
+        :param y: Target data.
+        """
         train_data = torch.utils.data.TensorDataset(x, y)
         train_loader = torch.utils.data.DataLoader(
             dataset=train_data, batch_size=self.configuration.batch_size, shuffle=True
@@ -132,6 +147,7 @@ class TrainingPipeline:
                 self.optimizer.step()
 
                 logger.info(f"Epoch: {epoch}, Loss: {loss.item()}")
+                self.model_checkpoint()
         logger.info("Training Finished...")
 
     def run(self, x: torch.Tensor, y: torch.Tensor):
