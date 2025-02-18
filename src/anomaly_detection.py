@@ -51,6 +51,7 @@ class TrainingConfig(BaseModel):
 
     input_size: int
     hidden_size: int
+    sequence_length: int
     num_layers: int
     output_size: int
     dropout: float
@@ -79,10 +80,21 @@ class TrainingPipeline:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
 
-    def _model_packaging(self, filename: str):
+    def create_model_package(self, filename: str):
         """Package the model after training to onnx."""
-        # torch.onnx.export(self.model, )
-        return None
+        self.model.eval()
+        torch.onnx.export(
+            self.model,
+            torch.randn(1, self.configuration.sequence_length, self.configuration.input_size),
+            filename,
+            input_names=["input"],
+            output_names=["output"],
+            dynamic_axes={
+                "input": {0: "batch_size", 1: "sequence_length"},
+                "output": {0: "batch_size"},
+            },
+            opset_version=11,
+        )
 
     def make_dataloader(self, x: torch.Tensor, y: torch.Tensor):
         """Create a DataLoader from the input data."""
@@ -94,21 +106,14 @@ class TrainingPipeline:
 
     def evaluate(self, test_loader: torch.utils.data.DataLoader):
         """Evaluate the model."""
-        self.model.eval()
-        with torch.no_grad():
-            correct = 0
-            total = 0
-            for data, labels in test_loader:
-                data, labels = data.to(self.device), labels.to(self.device)
-                outputs = self.model(data)
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels[:, -1]).sum().item()
-
-            logger.info(f"Accuracy: {100 * correct / total}")
+        raise NotImplementedError
 
     def train(self, train_loader: torch.utils.data.DataLoader):
-        """Train the model."""
+        """Train the model.
+
+        :param train_loader: DataLoader for training data.
+        """
+        logger.info("Training Started...")
         self.model.train()
         for epoch in range(self.configuration.num_epochs):
             for _i, (data, labels) in enumerate(train_loader):
@@ -127,6 +132,7 @@ class TrainingPipeline:
                 self.optimizer.step()
 
                 logger.info(f"Epoch: {epoch}, Loss: {loss.item()}")
+        logger.info("Training Finished...")
 
     def run(self, x: torch.Tensor, y: torch.Tensor):
         """Run the training Pipeline.
@@ -136,3 +142,5 @@ class TrainingPipeline:
         """
         train_data, train_loader = self.make_dataloader(x, y)
         self.train(train_loader)
+
+        self.create_model_package(filename="anomaly_detection.onnx")
