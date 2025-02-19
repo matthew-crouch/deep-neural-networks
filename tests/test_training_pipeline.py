@@ -20,4 +20,4 @@ def test_run_anomaly_detection():
     }
 
     training_pipeline = TrainingPipeline(configuration=config)
-    training_pipeline.run(x=x, y=y)
+    training_pipeline.run(train_data=(x, y))
