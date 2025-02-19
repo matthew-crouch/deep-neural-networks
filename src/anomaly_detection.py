@@ -185,7 +185,7 @@ class TrainingPipeline:
     def run(
         self,
         train_data: tuple[torch.Tensor, torch.Tensor],
-        val_data: tuple[torch.Tensor, torch.Tensor] = None,
+        val_data: tuple[torch.Tensor, torch.Tensor],
     ):
         """Run the training Pipeline.
 
