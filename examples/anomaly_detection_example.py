@@ -5,6 +5,7 @@ from src.create_dataset import generate_anomaly_dataset
 
 if __name__ == "__main__":
     x, y = generate_anomaly_dataset(n_samples=10000, n_features=10, random_state=42)
+    xval, yval = generate_anomaly_dataset(n_samples=100, n_features=10, random_state=420)
     config = {
         "input_size": x.shape[2],
         "sequence_length": x.shape[1],
@@ -18,4 +19,4 @@ if __name__ == "__main__":
     }
 
     training_pipeline = TrainingPipeline(configuration=config)
-    training_pipeline.run(x=x, y=y)
+    training_pipeline.run(train_data=(x, y), val_data=(xval, yval))

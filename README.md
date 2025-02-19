@@ -13,4 +13,4 @@ This repository contains various ideas, examples and information related to vari
     - Optimisation of DNN models using PyTorch
 - Loading and performing inference using Onnx and Rust.
 - Fine-Tuning LLMs using HuggingFace.
-- Parameter Efficient Fine Tuning.
+- Parameter Efficient Fine Tuning, LoRA etc.

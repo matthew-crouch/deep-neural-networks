@@ -1,6 +1,7 @@
 """LSTM model for anomaly detection."""
 
 import logging
+import os
 import uuid
 from pathlib import Path
 
@@ -8,7 +9,6 @@ import torch
 import torch.onnx
 from pydantic import BaseModel
 from torch import nn
-import os
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -113,31 +113,50 @@ class TrainingPipeline:
         """Save the model checkpoint."""
         torch.save(self.model.state_dict(), f"{self.run_id}/model_{uuid.uuid4()}.pth")
 
-    def make_dataloader(self, x: torch.Tensor, y: torch.Tensor):
+    def make_dataloader(self, data: tuple[torch.Tensor, torch.Tensor]):
         """Create a DataLoader from the input data.
 
         :param x: Input data.
         :param y: Target data.
-        :return: DataLoader for training data.
+        :return: DataLoader for data.
         """
-        train_data = torch.utils.data.TensorDataset(x, y)
-        train_loader = torch.utils.data.DataLoader(
-            dataset=train_data, batch_size=self.configuration.batch_size, shuffle=True
+        x, y = data
+        data = torch.utils.data.TensorDataset(x, y)
+        loader = torch.utils.data.DataLoader(
+            dataset=data, batch_size=self.configuration.batch_size, shuffle=True
         )
-        return train_loader
+        return loader
 
-    def evaluate(self, test_loader: torch.utils.data.DataLoader):
-        """Evaluate the model."""
-        raise NotImplementedError
+    def validation(self, val_loader: torch.utils.data.DataLoader) -> float:
+        """Evaluate the model.
 
-    def train(self, train_loader: torch.utils.data.DataLoader):
+        :param val_loader: DataLoader for validation data.
+        :return: Validation Loss.
+        """
+        self.model.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for data, labels in val_loader:
+                data, labels = data.to(self.device), labels.to(self.device)
+
+                outputs = self.model(data)
+                loss = self.criterion(outputs, labels[:, -1])
+
+                val_loss += loss.item()
+        return val_loss
+
+    def train(
+        self, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader
+    ):
         """Train the model.
 
         :param train_loader: DataLoader for training data.
+        :param val_loader: DataLoader for validation data.
         """
         logger.info("Training Started...")
-        self.model.train()
+        training_loss = 0
         for epoch in range(self.configuration.num_epochs):
+            self.model.train()
             for _i, (data, labels) in enumerate(train_loader):
                 data, labels = data.to(self.device), labels.to(self.device)
 
@@ -153,17 +172,28 @@ class TrainingPipeline:
                 loss.backward()
                 self.optimizer.step()
 
-                logger.info(f"Epoch: {epoch}, Loss: {loss.item()}")
+                training_loss += loss.item()
                 self.model_checkpoint()
+
+            val_loss = self.validation(val_loader)
+            logger.info(
+                f"Epoch: {epoch}, Training Loss: {training_loss}, Validation Loss: {val_loss}"
+            )
+
         logger.info("Training Finished...")
 
-    def run(self, x: torch.Tensor, y: torch.Tensor):
+    def run(
+        self,
+        train_data: tuple[torch.Tensor, torch.Tensor],
+        val_data: tuple[torch.Tensor, torch.Tensor] = None,
+    ):
         """Run the training Pipeline.
 
-        :param x: Input data.
-        :param y: Target data.
+        :param train_loader: DataLoader for training data.
+        :param val_loader: DataLoader for validation data.
         """
-        train_loader = self.make_dataloader(x, y)
-        self.train(train_loader)
+        train_loader = self.make_dataloader(train_data)
+        val_loader = self.make_dataloader(val_data)
+        self.train(train_loader, val_loader)
 
         self.create_model_package(filename="./models/anomaly_detection.onnx")
