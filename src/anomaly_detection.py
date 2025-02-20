@@ -1,14 +1,13 @@
 """LSTM model for anomaly detection."""
 
 import logging
-import os
-import uuid
-from pathlib import Path
 
 import torch
 import torch.onnx
 from pydantic import BaseModel
 from torch import nn
+
+from src.model_io import ModelIo
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -50,6 +49,26 @@ class LSTMClassifier(nn.Module):
         return self.fully_connected(output[:, -1, :])
 
 
+class EarlyStopping:
+    """Early stopping."""
+
+    def __init__(self, tolerance: int = 5):
+        """Initialize the early stopping object."""
+        self.tolerance = tolerance
+        self.counter = 0
+        self.min_delta = 0
+        self.early_stop = False
+
+    def __call__(self, train_loss, val_loss):
+        """Check if early stopping condition is met."""
+        if val_loss > train_loss:
+            self.counter += 1
+            if self.counter >= self.tolerance:
+                self.early_stop = True
+
+        return self.early_stop
+
+
 class TrainingConfig(BaseModel):
     """Dataclass for training configuration."""
 
@@ -62,6 +81,7 @@ class TrainingConfig(BaseModel):
     learning_rate: float
     batch_size: int
     num_epochs: int
+    early_stopping: bool
 
 
 class TrainingPipeline:
@@ -70,8 +90,8 @@ class TrainingPipeline:
     def __init__(self, configuration: dict):
         """Initialize the training pipeline."""
         self.configuration = TrainingConfig(**configuration)
-        self.run_id = Path(str(uuid.uuid4()))
-        Path.mkdir(self.run_id, parents=True, exist_ok=True)
+
+        self.early_stopping = EarlyStopping()
         self.model = LSTMClassifier(
             self.configuration.input_size,
             self.configuration.hidden_size,
@@ -86,32 +106,7 @@ class TrainingPipeline:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
 
-    def create_model_package(self, filename: str) -> None:
-        """Package the model after training to onnx.
-
-        :param filename: Name of the file to save the model.
-        """
-        self.model.eval()
-
-        if not os.path.exists("models"):
-            os.makedirs("models")
-
-        torch.onnx.export(
-            self.model,
-            torch.randn(1, self.configuration.sequence_length, self.configuration.input_size),
-            filename,
-            input_names=["input"],
-            output_names=["output"],
-            dynamic_axes={
-                "input": {0: "batch_size", 1: "sequence_length"},
-                "output": {0: "batch_size"},
-            },
-            opset_version=11,
-        )
-
-    def model_checkpoint(self):
-        """Save the model checkpoint."""
-        torch.save(self.model.state_dict(), f"{self.run_id}/model_{uuid.uuid4()}.pth")
+        self.model_io = ModelIo(self.model)
 
     def make_dataloader(self, data: tuple[torch.Tensor, torch.Tensor]):
         """Create a DataLoader from the input data.
@@ -127,6 +122,20 @@ class TrainingPipeline:
         )
         return loader
 
+    def predict(self, data: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        """Calculate outputs and loss.
+
+        :param data: Input data.
+        :param labels: Target data.
+        :return: Loss.
+        """
+        outputs = self.model(data)
+        ## We only select the last timestep (not generalised for all solutions)
+        # This will only predict one label per sequence, not one per timestep.
+        loss = self.criterion(outputs, labels[:, -1])
+        loss = -torch.log(torch.clamp(loss, min=1e-7))
+        return loss
+
     def validation(self, val_loader: torch.utils.data.DataLoader) -> float:
         """Evaluate the model.
 
@@ -139,8 +148,7 @@ class TrainingPipeline:
             for data, labels in val_loader:
                 data, labels = data.to(self.device), labels.to(self.device)
 
-                outputs = self.model(data)
-                loss = self.criterion(outputs, labels[:, -1])
+                loss = self.predict(data, labels)
 
                 val_loss += loss.item()
         return val_loss
@@ -160,12 +168,7 @@ class TrainingPipeline:
             for _i, (data, labels) in enumerate(train_loader):
                 data, labels = data.to(self.device), labels.to(self.device)
 
-                # Forward Pass
-                outputs = self.model(data)
-
-                ## We only select the last timestep (not generalised for all solutions)
-                # This will only predict one label per sequence, not one per timestep.
-                loss = self.criterion(outputs, labels[:, -1])
+                loss = self.predict(data, labels)
 
                 # Backward Pass and Optimization
                 self.optimizer.zero_grad()
@@ -173,12 +176,15 @@ class TrainingPipeline:
                 self.optimizer.step()
 
                 training_loss += loss.item()
-                self.model_checkpoint()
+                self.model_io.model_checkpoint()
 
             val_loss = self.validation(val_loader)
             logger.info(
                 f"Epoch: {epoch}, Training Loss: {training_loss}, Validation Loss: {val_loss}"
             )
+            if self.configuration.early_stopping and self.early_stopping(training_loss, val_loss):
+                logging.info("Early Stopping condition reached")
+                break
 
         logger.info("Training Finished...")
 
@@ -196,4 +202,8 @@ class TrainingPipeline:
         val_loader = self.make_dataloader(val_data)
         self.train(train_loader, val_loader)
 
-        self.create_model_package(filename="./models/anomaly_detection.onnx")
+        self.model_io.create_model_package(
+            filename="./models/anomaly_detection.onnx",
+            sequence_length=self.configuration.sequence_length,
+            input_size=self.configuration.input_size,
+        )
