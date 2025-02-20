@@ -14,21 +14,24 @@ class ModelIo:
     def __init__(self, model: torch.nn.Module = None):
         """Initialize the model I/O object."""
         self.model = model
-        self.path = Path(f"model_checkpoints/{str(uuid.uuid4())}")
-        Path.mkdir(self.path, parents=True, exist_ok=True)
+        self.run_id = uuid.uuid4().hex
 
     def load(self, filename: str) -> torch.nn.Module:
         """Load the model from a file."""
         model = onnx.load(filename)
         return model
 
-    def save(self, filename: str):
+    def save(self, filename: str, is_checkpoint: bool = False) -> None:
         """Save the model to a file."""
-        torch.save(self.model, filename)
+        if is_checkpoint:
+            _model = self.model.state_dict()
+            path = Path(f"model_checkpoints/{self.run_id}")
+        else:
+            _model = self.model
+            path = Path("models")
 
-    def model_checkpoint(self):
-        """Save the model checkpoint."""
-        torch.save(self.model.state_dict(), f"{self.path}/model_{uuid.uuid4()}.pth")
+        path.mkdir(parents=True, exist_ok=True)
+        torch.save(_model, Path(f"{path}/{filename}"))
 
     def create_model_package(self, filename: str, sequence_length: int, input_size: int) -> None:
         """Package the model after training to onnx.

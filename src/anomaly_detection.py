@@ -164,7 +164,7 @@ class TrainingPipeline:
         logger.info("Training Started...")
         for epoch in range(self.configuration.num_epochs):
             self.model.train()
-            for _i, (data, labels) in enumerate(train_loader):
+            for i, (data, labels) in enumerate(train_loader):
                 data, labels = data.to(self.device), labels.to(self.device)
 
                 train_loss = self.predict(data, labels)
@@ -174,7 +174,7 @@ class TrainingPipeline:
                 train_loss.backward()
                 self.optimizer.step()
 
-                self.model_io.model_checkpoint()
+                self.model_io.save(filename=f"model_{i}.pth", is_checkpoint=True)
 
             val_loss = self.validation(val_loader)
             logger.info(
@@ -201,9 +201,3 @@ class TrainingPipeline:
         self.train(train_loader, val_loader)
 
         self.model_io.save("./models/anomaly_detection.pth")
-
-        # self.model_io.create_model_package(
-        #     filename="./models/anomaly_detection.onnx",
-        #     sequence_length=self.configuration.sequence_length,
-        #     input_size=self.configuration.input_size,
-        # )
