@@ -61,7 +61,7 @@ class EarlyStopping:
 
     def __call__(self, train_loss, val_loss):
         """Check if early stopping condition is met."""
-        if val_loss > train_loss:
+        if abs(val_loss) > abs(train_loss):
             self.counter += 1
             if self.counter >= self.tolerance:
                 self.early_stop = True
@@ -81,7 +81,7 @@ class TrainingConfig(BaseModel):
     learning_rate: float
     batch_size: int
     num_epochs: int
-    early_stopping: bool
+    early_stopping: bool = False
 
 
 class TrainingPipeline:
@@ -162,27 +162,25 @@ class TrainingPipeline:
         :param val_loader: DataLoader for validation data.
         """
         logger.info("Training Started...")
-        training_loss = 0
         for epoch in range(self.configuration.num_epochs):
             self.model.train()
             for _i, (data, labels) in enumerate(train_loader):
                 data, labels = data.to(self.device), labels.to(self.device)
 
-                loss = self.predict(data, labels)
+                train_loss = self.predict(data, labels)
 
                 # Backward Pass and Optimization
                 self.optimizer.zero_grad()
-                loss.backward()
+                train_loss.backward()
                 self.optimizer.step()
 
-                training_loss += loss.item()
                 self.model_io.model_checkpoint()
 
             val_loss = self.validation(val_loader)
             logger.info(
-                f"Epoch: {epoch}, Training Loss: {training_loss}, Validation Loss: {val_loss}"
+                f"Epoch: {epoch}, Training Loss: {train_loss.item()}, Validation Loss: {val_loss}"
             )
-            if self.configuration.early_stopping and self.early_stopping(training_loss, val_loss):
+            if self.configuration.early_stopping and self.early_stopping(train_loss, val_loss):
                 logging.info("Early Stopping condition reached")
                 break
 
@@ -202,8 +200,10 @@ class TrainingPipeline:
         val_loader = self.make_dataloader(val_data)
         self.train(train_loader, val_loader)
 
-        self.model_io.create_model_package(
-            filename="./models/anomaly_detection.onnx",
-            sequence_length=self.configuration.sequence_length,
-            input_size=self.configuration.input_size,
-        )
+        self.model_io.save("./models/anomaly_detection.pth")
+
+        # self.model_io.create_model_package(
+        #     filename="./models/anomaly_detection.onnx",
+        #     sequence_length=self.configuration.sequence_length,
+        #     input_size=self.configuration.input_size,
+        # )

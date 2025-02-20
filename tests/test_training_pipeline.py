@@ -2,6 +2,7 @@
 
 from src.anomaly_detection import TrainingPipeline
 from src.create_dataset import generate_anomaly_dataset
+from src.model_io import ModelIo
 
 
 def test_run_anomaly_detection():
@@ -18,7 +19,15 @@ def test_run_anomaly_detection():
         "learning_rate": 0.001,
         "batch_size": x.shape[0],
         "num_epochs": 2,
+        "early_stopping": True,
     }
 
     training_pipeline = TrainingPipeline(configuration=config)
     training_pipeline.run(train_data=(x, y), val_data=(xval, yval))
+
+
+def test_load_model():
+    """Test the load_model function."""
+    model_io = ModelIo()
+    model = model_io.load("./models/anomaly_detection.onnx")
+    assert model is not None

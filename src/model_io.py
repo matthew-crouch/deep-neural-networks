@@ -4,13 +4,14 @@ import os
 import uuid
 from pathlib import Path
 
+import onnx
 import torch
 
 
 class ModelIo:
     """Model I/O class."""
 
-    def __init__(self, model: torch.nn.Module):
+    def __init__(self, model: torch.nn.Module = None):
         """Initialize the model I/O object."""
         self.model = model
         self.path = Path(f"model_checkpoints/{str(uuid.uuid4())}")
@@ -18,7 +19,7 @@ class ModelIo:
 
     def load(self, filename: str) -> torch.nn.Module:
         """Load the model from a file."""
-        model = torch.load(filename)
+        model = onnx.load(filename)
         return model
 
     def save(self, filename: str):

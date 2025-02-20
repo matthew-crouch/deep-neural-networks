@@ -16,13 +16,13 @@ if __name__ == "__main__":
     config = {
         "input_size": x.shape[2],
         "sequence_length": x.shape[1],
-        "hidden_size": 8,
-        "num_layers": 2,
+        "hidden_size": 128,
+        "num_layers": 20,
         "output_size": 2,
         "dropout": 0.1,
         "learning_rate": 0.0001,
         "batch_size": x.shape[0],
-        "num_epochs": 10,
+        "num_epochs": 100000,
         "early_stopping": True,
     }
 
