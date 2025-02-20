@@ -1,4 +1,7 @@
-"""Model I/O Module."""
+"""Model I/O Module.
+
+Designed to be a composible module that can be used to save and load models.
+"""
 
 import os
 import uuid
