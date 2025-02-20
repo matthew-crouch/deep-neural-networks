@@ -200,4 +200,4 @@ class TrainingPipeline:
         val_loader = self.make_dataloader(val_data)
         self.train(train_loader, val_loader)
 
-        self.model_io.save("./models/anomaly_detection.pth")
+        self.model_io.save("anomaly_detection.pth")

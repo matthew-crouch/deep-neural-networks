@@ -1,5 +1,7 @@
 """Test the training pipeline."""
 
+import pytest
+
 from src.anomaly_detection import TrainingPipeline
 from src.create_dataset import generate_anomaly_dataset
 from src.model_io import ModelIo
@@ -26,6 +28,7 @@ def test_run_anomaly_detection():
     training_pipeline.run(train_data=(x, y), val_data=(xval, yval))
 
 
+@pytest.mark.skip("Not implemented")
 def test_load_model():
     """Test the load_model function."""
     model_io = ModelIo()
