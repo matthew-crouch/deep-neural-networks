@@ -1,7 +1,7 @@
 """Example of anomaly detection using LSTM Autoencoder."""
 
-from src.anomaly_detection import TrainingPipeline
 from src.create_dataset import generate_anomaly_dataset  # ,  preprocess_api_dataset,
+from src.training_pipeline import TrainingPipeline
 
 if __name__ == "__main__":
     x, y = generate_anomaly_dataset(n_samples=10000, n_features=10, random_state=42)
