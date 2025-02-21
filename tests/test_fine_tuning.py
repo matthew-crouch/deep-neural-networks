@@ -9,7 +9,7 @@ from src.fine_tuning_pipeline import FineTunerPipeline, TaskType
 
 def test_tokenisation():
     """Test tokenisation function in the fine_tuner pipeline."""
-    dataset = load_dataset("xsum")
+    dataset = load_dataset("xsum", trust_remote_code=True)
     _ = load("rouge")
 
     fine_tuner = FineTunerPipeline(
@@ -23,7 +23,7 @@ def test_tokenisation():
 @pytest.mark.skip(reason="Under development")
 def test_peft():
     """Test PEFT pipeline."""
-    dataset = load_dataset("xsum")
+    dataset = load_dataset("xsum", trust_remote_code=True)
     _ = load("rouge")
 
     ft_pipeline = FineTunerPipeline(
