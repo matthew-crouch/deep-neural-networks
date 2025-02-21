@@ -75,10 +75,10 @@ class FineTunerPipeline:
             TaskType.TEXT_SUMMARISATION: {
                 "task": AutoModelForSeq2SeqLM,
                 "models": "google/pegasus-xsum",
-                "model_kwargs": None,
+                "model_kwargs": {},
                 "trainer": {
                     "type": Seq2SeqTrainer,
-                    "trainer_kwargs": {evaluation_strategy: "epoch"},
+                    "trainer_kwargs": {"evaluation_strategy": "epoch"},
                 },
             },
         }
