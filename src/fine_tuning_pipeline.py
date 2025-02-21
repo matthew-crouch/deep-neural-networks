@@ -61,8 +61,10 @@ class FineTunerPipeline:
             model_name, torch_dtype="auto", **model_kwargs
         )
 
+    # TODO: Eventually we could look to abstract this out to a base class
     @property
     def _mode_options(self):
+        """Model options for the pipeline."""
         return {
             TaskType.SEQUENCE_CLASSIFICATION: {
                 "task": AutoModelForSequenceClassification,
