@@ -20,7 +20,14 @@ def test_tokenisation():
     fine_tuner.tokenize()
 
 
-@pytest.mark.skip(reason="Not implemented")
+@pytest.mark.skip(reason="Under development")
 def test_peft():
     """Test PEFT pipeline."""
-    return None
+    dataset = load_dataset("xsum")
+    _ = load("rouge")
+
+    ft_pipeline = FineTunerPipeline(
+        mode=TaskType.TEXT_SUMMARISATION,
+        fine_tuning_config={"text_column": "document", "target_column": "summary"},
+    )
+    _ = ft_pipeline.run(dataset=dataset)
