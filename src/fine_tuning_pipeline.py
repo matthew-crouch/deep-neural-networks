@@ -9,6 +9,7 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     AutoModelForSequenceClassification,
     AutoTokenizer,
+    Seq2SeqTrainer,
 )
 
 
@@ -47,15 +48,18 @@ class FineTunerPipeline:
         self.dataset = dataset
 
         transformers = self._mode_options.get(mode)
-        transformer_model, model_name = transformers.get("task"), transformers.get("models")
+        transformer_model, model_name, model_kwargs = (
+            transformers.get("task"),
+            transformers.get("models"),
+            transformers.get("model_kwargs"),
+        )
 
         self.fine_tuning_config = FineTuningConfig(**fine_tuning_config)
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-
-        # This from_pretrained needs to be able to support arbitary kwargs
-
-        self.model = transformer_model.from_pretrained(model_name, torch_dtype="auto")
+        self.model = transformer_model.from_pretrained(
+            model_name, torch_dtype="auto", **model_kwargs
+        )
 
     @property
     def _mode_options(self):
@@ -63,11 +67,17 @@ class FineTunerPipeline:
             TaskType.SEQUENCE_CLASSIFICATION: {
                 "task": AutoModelForSequenceClassification,
                 "models": "bert",
+                "model_kwargs": {"num_labels": 2},
             },
             TaskType.TEXT_GENERATION: AutoModelForCausalLM,
             TaskType.TEXT_SUMMARISATION: {
                 "task": AutoModelForSeq2SeqLM,
                 "models": "google/pegasus-xsum",
+                "model_kwargs": None,
+                "trainer": {
+                    "type": Seq2SeqTrainer,
+                    "trainer_kwargs": {evaluation_strategy: "epoch"},
+                },
             },
         }
 

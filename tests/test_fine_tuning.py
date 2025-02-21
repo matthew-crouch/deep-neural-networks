@@ -9,9 +9,9 @@ from src.fine_tuning_pipeline import FineTunerPipeline, TaskType
 def test_fine_tuning():
     """Test fine tuning pipeline."""
     dataset = load_dataset("xsum")
-    _ = load("rouge")
+    eval_dataset = load("rouge")
 
-    _ = FineTunerPipeline(
+    fine_tuner = FineTunerPipeline(
         dataset=dataset,
         mode=TaskType.TEXT_SUMMARISATION,
         fine_tuning_config={"text_column": "document", "target_column": "summary"},
