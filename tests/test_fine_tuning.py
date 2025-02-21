@@ -13,10 +13,10 @@ def test_tokenisation():
     _ = load("rouge")
 
     fine_tuner = FineTunerPipeline(
-        dataset=dataset,
         mode=TaskType.TEXT_SUMMARISATION,
         fine_tuning_config={"text_column": "document", "target_column": "summary"},
     )
+    fine_tuner.dataset = dataset
     fine_tuner.tokenize()
 
 

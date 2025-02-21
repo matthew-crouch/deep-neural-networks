@@ -95,7 +95,6 @@ class FineTunerPipeline:
                         per_device_train_batch_size=16,
                         per_device_eval_batch_size=16,
                         fp16=True,
-                        data_loader_num_workers=4,
                     ),
                 },
             },
