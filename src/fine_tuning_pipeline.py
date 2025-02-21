@@ -39,34 +39,41 @@ class FineTunerPipeline:
 
     def __init__(
         self,
-        model_name: str,
         dataset: DatasetDict,
         mode: TaskType,
         fine_tuning_config: dict,
     ):
         """Initialize the fine-tuning pipeline."""
-        self.model_name = model_name
         self.dataset = dataset
-        transformer_model = self._mode_options.get(mode)
+
+        transformers = self._mode_options.get(mode)
+        transformer_model, model_name = transformers.get("task"), transformers.get("models")
 
         self.fine_tuning_config = FineTuningConfig(**fine_tuning_config)
 
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         # This from_pretrained needs to be able to support arbitary kwargs
-        self.model = transformer_model.from_pretrained(self.model_name, torch_dtype="auto")
+
+        self.model = transformer_model.from_pretrained(model_name, torch_dtype="auto")
 
     @property
     def _mode_options(self):
         return {
-            TaskType.SEQUENCE_CLASSIFICATION: AutoModelForSequenceClassification,
+            TaskType.SEQUENCE_CLASSIFICATION: {
+                "task": AutoModelForSequenceClassification,
+                "models": "bert",
+            },
             TaskType.TEXT_GENERATION: AutoModelForCausalLM,
-            TaskType.TEXT_SUMMARISATION: AutoModelForSeq2SeqLM,
+            TaskType.TEXT_SUMMARISATION: {
+                "task": AutoModelForSeq2SeqLM,
+                "models": "google/pegasus-xsum",
+            },
         }
 
-    def tokenizer_function(self, dataset: DatasetDict, text_column: str = "text"):
+    def tokenizer_function(self, dataset: DatasetDict):
         """Tokenizer function for the dataset."""
-        return self.tokenizer(dataset[text_column], truncation=True)
+        return self.tokenizer(dataset[self.fine_tuning_config.text_column], truncation=True)
 
     def tokenize(self, limit=True):
         """Tokenize the input data."""
