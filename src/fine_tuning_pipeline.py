@@ -3,6 +3,7 @@
 import logging
 from enum import Enum
 
+import torch
 from datasets import DatasetDict
 from pydantic import BaseModel
 from transformers import (
@@ -63,10 +64,13 @@ class FineTunerPipeline:
 
         self.fine_tuning_config = FineTuningConfig(**fine_tuning_config)
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = transformer_model.from_pretrained(
             model_name, torch_dtype="auto", **model_kwargs
         )
+        self.model.to(self.device)
 
     # TODO: Eventually we could look to abstract this out to a base class
     @property
