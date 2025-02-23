@@ -5,6 +5,7 @@ from enum import Enum
 
 import torch
 from datasets import DatasetDict
+from peft import LoraConfig, get_peft_model
 from pydantic import BaseModel
 from transformers import (
     AutoModelForCausalLM,
@@ -36,7 +37,11 @@ class FineTuningConfig(BaseModel):
 
     text_column: str
     target_column: str
-    lora: bool = False
+    lora: dict = {
+        "lora_config": LoraConfig(
+            r=8, lora_alpha=32, lora_dropout=0.1, bias="none", target_modules=["q_proj", "v_proj"]
+        )
+    }
     quantisation: bool = False
 
 
@@ -70,6 +75,10 @@ class FineTunerPipeline:
         self.model = transformer_model.from_pretrained(
             model_name, torch_dtype="auto", **model_kwargs
         )
+
+        if self.fine_tuning_config.lora:
+            self.model = get_peft_model(self.model, self.fine_tuning_config.lora.get("lora_config"))
+
         self.model.to(self.device)
 
     # TODO: Eventually we could look to abstract this out to a base class

@@ -22,8 +22,8 @@ def test_tokenisation():
     fine_tuner.tokenize()
 
 
-@pytest.mark.skip("Test for documentation")
-@pytest.mark.parametrize("training_mode", ["cpu", "gpu", "multi-gpu"])
+# @pytest.mark.skip("Test for documentation")
+@pytest.mark.parametrize("training_mode", ["cpu"])
 def test_peft(training_mode):
     """Test PEFT pipeline."""
     dataset = load_dataset("xsum", trust_remote_code=True)
