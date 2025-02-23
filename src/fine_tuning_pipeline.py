@@ -39,6 +39,9 @@ class FineTuningConfig(BaseModel):
     target_column: str
     lora: dict = {"enabled": False, "lora_config": LoraConfig()}
     quantisation: bool = False
+    per_device_train_batch_size: int = 2
+    per_device_eval_batch_size: int = 2
+    save_model: bool = False
 
 
 class FineTunerPipeline:
@@ -56,16 +59,14 @@ class FineTunerPipeline:
     ):
         """Initialize the fine-tuning pipeline."""
         self.dataset = None
-        transformers = self._mode_options.get(mode)
+        self.fine_tuning_config = FineTuningConfig(**fine_tuning_config)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        transformers = self._mode_options(mode)
         transformer_model, model_name, model_kwargs = (
             transformers.get("task"),
             transformers.get("models"),
             transformers.get("model_kwargs"),
         )
-
-        self.fine_tuning_config = FineTuningConfig(**fine_tuning_config)
-
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = transformer_model.from_pretrained(
@@ -78,16 +79,19 @@ class FineTunerPipeline:
         self.model.to(self.device)
 
     # TODO: Eventually we could look to abstract this out to a base class
-    @property
-    def _mode_options(self):
+    def _mode_options(self, mode: TaskType):
         """Model options for the pipeline."""
-        return {
+        mode_options = {
             TaskType.SEQUENCE_CLASSIFICATION: {
                 "task": AutoModelForSequenceClassification,
                 "models": "bert",
                 "model_kwargs": {"num_labels": 2},
             },
-            TaskType.TEXT_GENERATION: AutoModelForCausalLM,
+            TaskType.TEXT_GENERATION: {
+                "task": AutoModelForCausalLM,
+                "models": "gpt2",
+                "model_kwargs": {},
+            },
             TaskType.TEXT_SUMMARISATION: {
                 "task": AutoModelForSeq2SeqLM,
                 "models": "google/pegasus-xsum",
@@ -101,13 +105,17 @@ class FineTunerPipeline:
                         learning_rate=1e-5,
                         weight_decay=0.01,
                         num_train_epochs=3,
-                        per_device_train_batch_size=16,
-                        per_device_eval_batch_size=16,
-                        fp16=True,
+                        per_device_train_batch_size=self.fine_tuning_config.per_device_train_batch_size,
+                        per_device_eval_batch_size=self.fine_tuning_config.per_device_eval_batch_size,
+                        fp16=True if self.device.type == "cuda" else False,
                     ),
                 },
             },
         }
+
+        if mode not in mode_options:
+            raise ValueError(f"Unsupported mode: {mode}")
+        return mode_options.get(mode)
 
     def tokenizer_function(self, dataset: DatasetDict):
         """Tokenizer function for the dataset."""
@@ -135,8 +143,8 @@ class FineTunerPipeline:
         tokenized_dataset = self.dataset.map(self.tokenizer_function, batched=True)
 
         if limit:
-            limited_train_dataset = tokenized_dataset["train"].shuffle(seed=42).select(range(1000))
-            limited_eval_dataset = tokenized_dataset["test"].shuffle(seed=42).select(range(1000))
+            limited_train_dataset = tokenized_dataset["train"].shuffle(seed=42).select(range(100))
+            limited_eval_dataset = tokenized_dataset["test"].shuffle(seed=42).select(range(100))
             return limited_train_dataset, limited_eval_dataset
 
         logger.info("Tokenizing completed...")
@@ -149,7 +157,7 @@ class FineTunerPipeline:
 
         train_data, eval_data = self.tokenize()
 
-        trainer = self._mode_options.get(TaskType.TEXT_SUMMARISATION).get("trainer")
+        trainer = self._mode_options(mode=TaskType.TEXT_SUMMARISATION).get("trainer")
 
         auto_model = trainer.get("type")
         trainer = auto_model(
@@ -163,5 +171,8 @@ class FineTunerPipeline:
         logger.info("Starting Fine Tuning...")
         trainer.train()
         logger.info("Fine Tuning Completed...")
+
+        if self.fine_tuning_config.save_model:
+            trainer.save_model()
 
         return trainer
