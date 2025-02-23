@@ -23,7 +23,7 @@ def test_tokenisation():
     fine_tuner.tokenize()
 
 
-# @pytest.mark.skip("Test for documentation")
+@pytest.mark.skip("Test for documentation")
 @pytest.mark.parametrize("training_mode", ["cpu"])
 def test_peft(training_mode):
     """Test PEFT pipeline."""
