@@ -5,6 +5,7 @@ import torch
 import transformers
 from datasets import load_dataset
 from evaluate import load
+from peft import LoraConfig
 
 from src.fine_tuning_pipeline import FineTunerPipeline, TaskType
 
@@ -22,7 +23,7 @@ def test_tokenisation():
     fine_tuner.tokenize()
 
 
-@pytest.mark.skip("Test for documentation")
+# @pytest.mark.skip("Test for documentation")
 @pytest.mark.parametrize("training_mode", ["cpu"])
 def test_peft(training_mode):
     """Test PEFT pipeline."""
@@ -31,7 +32,20 @@ def test_peft(training_mode):
 
     ft_pipeline = FineTunerPipeline(
         mode=TaskType.TEXT_SUMMARISATION,
-        fine_tuning_config={"text_column": "document", "target_column": "summary"},
+        fine_tuning_config={
+            "text_column": "document",
+            "target_column": "summary",
+            "lora": {
+                "enabled": True,
+                "lora_config": LoraConfig(
+                    r=8,
+                    lora_alpha=32,
+                    lora_dropout=0.1,
+                    bias="none",
+                    target_modules=["q_proj", "v_proj"],
+                ),
+            },
+        },
     )
     breakpoint()
     _ = ft_pipeline.run(dataset=dataset)
