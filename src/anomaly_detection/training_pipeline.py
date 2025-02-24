@@ -7,7 +7,7 @@ import torch.onnx
 from pydantic import BaseModel
 from torch import nn
 
-from src.model_io import ModelIo
+from src.anomaly_detection.model_io import ModelIo
 
 logging.basicConfig(
     level=logging.DEBUG,

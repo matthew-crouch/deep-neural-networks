@@ -1,6 +1,6 @@
 """Tests for the create_dataset module."""
 
-from src.create_dataset import generate_anomaly_dataset
+from src.anomaly_detection.create_dataset import generate_anomaly_dataset
 
 
 def test_generate_anomaly_dataset():

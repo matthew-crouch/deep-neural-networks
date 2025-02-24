@@ -7,8 +7,8 @@ from datasets import load_dataset
 from evaluate import load
 from peft import LoraConfig
 
-from src.fine_tuning_pipeline import FineTunerPipeline, FineTuningConfig, TaskType
-from src.pipelines.tokenizer import Tokenizer
+from src.llms.fine_tuning_pipeline import FineTunerPipeline, FineTuningConfig, TaskType
+from src.llms.pipelines.tokenizer import Tokenizer
 
 
 def test_tokenisation():

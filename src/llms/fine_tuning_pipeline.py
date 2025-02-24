@@ -7,8 +7,8 @@ from datasets import DatasetDict
 from peft import LoraConfig, get_peft_model
 from pydantic import BaseModel
 
-from src.pipelines.mode_config import TaskType, config
-from src.pipelines.tokenizer import Tokenizer
+from src.llms.pipelines.mode_config import TaskType, config
+from src.llms.pipelines.tokenizer import Tokenizer
 
 logging.basicConfig(
     level=logging.DEBUG,

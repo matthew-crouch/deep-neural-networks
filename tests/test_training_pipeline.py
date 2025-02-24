@@ -2,9 +2,9 @@
 
 import pytest
 
-from src.create_dataset import generate_anomaly_dataset
-from src.model_io import ModelIo
-from src.training_pipeline import TrainingPipeline
+from src.anomaly_detection.create_dataset import generate_anomaly_dataset
+from src.anomaly_detection.model_io import ModelIo
+from src.anomaly_detection.training_pipeline import TrainingPipeline
 
 
 def test_run_anomaly_detection():
