@@ -17,11 +17,14 @@ def test_tokenisation():
 
     fine_tuner = FineTunerPipeline(
         mode=TaskType.TEXT_SUMMARISATION,
-        fine_tuning_config={"text_column": "document", "target_column": "summary"},
+        fine_tuning_config={
+            "ft_model_name": "custom_model",
+            "text_column": "document",
+            "target_column": "summary",
+        },
     )
     fine_tuner.dataset = dataset
     fine_tuner.tokenize()
-
 
 @pytest.mark.skip("Test for documentation")
 @pytest.mark.parametrize("training_mode", ["cpu"])
@@ -33,8 +36,12 @@ def test_peft(training_mode):
     ft_pipeline = FineTunerPipeline(
         mode=TaskType.TEXT_SUMMARISATION,
         fine_tuning_config={
+            "ft_model_name": "custom_model",
             "text_column": "document",
             "target_column": "summary",
+            "per_device_train_batch_size": 2,
+            "per_device_eval_batch_size": 2,
+            "sample_size": 10,
             "lora": {
                 "enabled": True,
                 "lora_config": LoraConfig(

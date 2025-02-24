@@ -1,20 +1,14 @@
 """Fine-tuning pipeline for transformers models."""
 
 import logging
-from enum import Enum
 
 import torch
 from datasets import DatasetDict
 from peft import LoraConfig, get_peft_model
 from pydantic import BaseModel
-from transformers import (
-    AutoModelForCausalLM,
-    AutoModelForSeq2SeqLM,
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    Seq2SeqTrainer,
-    Seq2SeqTrainingArguments,
-)
+
+from src.pipelines.mode_config import TaskType, config
+from src.pipelines.tokenizer import Tokenizer
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -24,23 +18,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class TaskType(Enum):
-    """Enum class for model types."""
-
-    SEQUENCE_CLASSIFICATION = "sequence_classification"
-    TEXT_GENERATION = "text_generation"
-    TEXT_SUMMARISATION = "summarisation"
-
-
 class FineTuningConfig(BaseModel):
     """Dataclass for fine-tuning configuration."""
 
+    ft_model_name: str
     text_column: str
     target_column: str
     lora: dict = {"enabled": False, "lora_config": LoraConfig()}
     quantisation: bool = False
     per_device_train_batch_size: int = 2
     per_device_eval_batch_size: int = 2
+    sample_size: int = 10
     save_model: bool = False
 
 
@@ -68,7 +56,6 @@ class FineTunerPipeline:
             transformers.get("model_kwargs"),
         )
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = transformer_model.from_pretrained(
             model_name, torch_dtype="auto", **model_kwargs
         )
@@ -76,96 +63,39 @@ class FineTunerPipeline:
         if self.fine_tuning_config.lora.get("enabled"):
             self.model = get_peft_model(self.model, self.fine_tuning_config.lora.get("lora_config"))
 
+        if torch.cuda.device_count() > 1:
+            logger.info(f"Multiple GPUs found. Training on all {torch.cuda.device_count()} GPUs.")
+            self.model = torch.nn.DataParallel(self.model)
         self.model.to(self.device)
 
     # TODO: Eventually we could look to abstract this out to a base class
     def _mode_options(self, mode: TaskType):
         """Model options for the pipeline."""
-        mode_options = {
-            TaskType.SEQUENCE_CLASSIFICATION: {
-                "task": AutoModelForSequenceClassification,
-                "models": "bert",
-                "model_kwargs": {"num_labels": 2},
-            },
-            TaskType.TEXT_GENERATION: {
-                "task": AutoModelForCausalLM,
-                "models": "gpt2",
-                "model_kwargs": {},
-            },
-            TaskType.TEXT_SUMMARISATION: {
-                "task": AutoModelForSeq2SeqLM,
-                "models": "google/pegasus-xsum",
-                "model_kwargs": {},
-                "data_collector": None,
-                "trainer": {
-                    "type": Seq2SeqTrainer,
-                    "trainer_kwargs": Seq2SeqTrainingArguments(
-                        "test-finetuned",
-                        evaluation_strategy="epoch",
-                        learning_rate=1e-5,
-                        weight_decay=0.01,
-                        num_train_epochs=3,
-                        per_device_train_batch_size=self.fine_tuning_config.per_device_train_batch_size,
-                        per_device_eval_batch_size=self.fine_tuning_config.per_device_eval_batch_size,
-                        fp16=True if self.device.type == "cuda" else False,
-                    ),
-                },
-            },
-        }
-
+        mode_options = config(
+            ft_model_name=self.fine_tuning_config.ft_model_name,
+            per_device_train_batch_size=self.fine_tuning_config.per_device_train_batch_size,
+            per_device_eval_batch_size=self.fine_tuning_config.per_device_eval_batch_size,
+            device=self.device,
+        )
         if mode not in mode_options:
             raise ValueError(f"Unsupported mode: {mode}")
         return mode_options.get(mode)
 
-    def tokenizer_function(self, dataset: DatasetDict):
-        """Tokenizer function for the dataset."""
-        model_inputs = self.tokenizer(
-            dataset[self.fine_tuning_config.text_column],
-            truncation=True,
-            padding="max_length",
-            max_length=512,
-        )
-        with self.tokenizer.as_target_tokenizer():
-            labels = self.tokenizer(
-                dataset[self.fine_tuning_config.target_column],
-                truncation=True,
-                padding="max_length",
-                max_length=150,
-            )
-
-        model_inputs["labels"] = labels["input_ids"]
-        return model_inputs
-
-    def tokenize(self, limit=True) -> tuple[DatasetDict, DatasetDict]:
-        """Tokenize the input data."""
-        logger.info("Tokenizing the dataset...")
-
-        tokenized_dataset = self.dataset.map(self.tokenizer_function, batched=True)
-
-        if limit:
-            limited_train_dataset = tokenized_dataset["train"].shuffle(seed=42).select(range(100))
-            limited_eval_dataset = tokenized_dataset["test"].shuffle(seed=42).select(range(100))
-            return limited_train_dataset, limited_eval_dataset
-
-        logger.info("Tokenizing completed...")
-
-        return tokenized_dataset["train"], tokenized_dataset["test"]
-
     def run(self, dataset: DatasetDict):
         """Fine-tune the model."""
-        self.dataset = dataset
+        trainer = self._mode_options(mode=TaskType.TEXT_SUMMARISATION)
 
-        train_data, eval_data = self.tokenize()
+        tokenizer = Tokenizer(trainer["models"], config=self.fine_tuning_config)
+        train_data, eval_data = tokenizer.tokenize(dataset=dataset)
 
-        trainer = self._mode_options(mode=TaskType.TEXT_SUMMARISATION).get("trainer")
-
-        auto_model = trainer.get("type")
+        auto_model = trainer.get("trainer").get("type")
         trainer = auto_model(
             model=self.model,
-            args=trainer.get("trainer_kwargs"),
-            train_dataset=train_data,
-            eval_dataset=eval_data,
-            tokenizer=self.tokenizer,
+            args=trainer.get("trainer").get("trainer_kwargs"),
+            ## We need to generalise this to support other tasks
+            train_dataset=train_data.remove_columns(["document", "summary", "id"]),
+            eval_dataset=eval_data.remove_columns(["document", "summary", "id"]),
+            tokenizer=tokenizer.auto_tokenizer,
         )
 
         logger.info("Starting Fine Tuning...")
