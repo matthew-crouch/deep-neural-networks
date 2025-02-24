@@ -7,24 +7,22 @@ from datasets import load_dataset
 from evaluate import load
 from peft import LoraConfig
 
-from src.fine_tuning_pipeline import FineTunerPipeline, TaskType
+from src.fine_tuning_pipeline import FineTunerPipeline, FineTuningConfig, TaskType
+from src.pipelines.tokenizer import Tokenizer
 
 
 def test_tokenisation():
     """Test tokenisation function in the fine_tuner pipeline."""
     dataset = load_dataset("xsum", trust_remote_code=True)
-    _ = load("rouge")
 
-    fine_tuner = FineTunerPipeline(
-        mode=TaskType.TEXT_SUMMARISATION,
-        fine_tuning_config={
-            "ft_model_name": "custom_model",
-            "text_column": "document",
-            "target_column": "summary",
-        },
-    )
-    fine_tuner.dataset = dataset
-    fine_tuner.tokenize()
+    fine_tuning_config = {
+        "ft_model_name": "custom_model",
+        "text_column": "document",
+        "target_column": "summary",
+    }
+    tokenizer = Tokenizer("google/pegasus-xsum", config=FineTuningConfig(**fine_tuning_config))
+    train_data, eval_data = tokenizer.tokenize(dataset=dataset)
+
 
 @pytest.mark.skip("Test for documentation")
 @pytest.mark.parametrize("training_mode", ["cpu"])
