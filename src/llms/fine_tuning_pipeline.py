@@ -64,13 +64,18 @@ class FineTunerPipeline:
             self.model = get_peft_model(self.model, self.fine_tuning_config.lora.get("lora_config"))
 
         if torch.cuda.device_count() > 1:
+            torch.cuda.empty_cache()
             logger.info(f"Multiple GPUs found. Training on all {torch.cuda.device_count()} GPUs.")
             self.model = torch.nn.DataParallel(self.model)
         self.model.to(self.device)
 
     # TODO: Eventually we could look to abstract this out to a base class
-    def _mode_options(self, mode: TaskType):
-        """Model options for the pipeline."""
+    def _mode_options(self, mode: TaskType) -> dict:
+        """Model options for the pipeline.
+
+        :param mode: TaskType
+        :return: dict
+        """
         mode_options = config(
             ft_model_name=self.fine_tuning_config.ft_model_name,
             per_device_train_batch_size=self.fine_tuning_config.per_device_train_batch_size,
@@ -97,7 +102,6 @@ class FineTunerPipeline:
             eval_dataset=eval_data.remove_columns(["document", "summary", "id"]),
             tokenizer=tokenizer.auto_tokenizer,
         )
-
         logger.info("Starting Fine Tuning...")
         trainer.train()
         logger.info("Fine Tuning Completed...")
