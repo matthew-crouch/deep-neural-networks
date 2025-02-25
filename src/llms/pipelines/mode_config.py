@@ -8,6 +8,8 @@ from transformers import (
     AutoModelForSequenceClassification,
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
+    Trainer,
+    TrainingArguments,
 )
 
 
@@ -31,22 +33,37 @@ def config(**kwargs) -> dict:
     device = kwargs.get("device")
     ft_model_name = kwargs.get("ft_model_name")
     mode_options = {
-        TaskType.SEQUENCE_CLASSIFICATION: {
-            "task": AutoModelForSequenceClassification,
-            "models": "google-bert/bert-base-cased",
-            "model_kwargs": {"num_labels": 2},
+        # TaskType.SEQUENCE_CLASSIFICATION: {
+        #     "task": AutoModelForSequenceClassification,
+        #     "models": "google-bert/bert-base-cased",
+        #     "model_kwargs": {"num_labels": 2},
+        #     "trainer": {
+        #         "type": Trainer,
+        #         "trainer_kwargs": TrainingArguments(
+        #             evaluation_strategy="epoch", num_train_epochs=3
+        #         ),
+        #     },
+        # },
+        TaskType.TEXT_GENERATION: {
+            "task": AutoModelForCausalLM,
+            "models": "meta-llama/Llama-3.1-8B",
+            "model_kwargs": {"device_map": "auto"},
             "trainer": {
                 "type": Trainer,
                 "trainer_kwargs": TrainingArguments(
-                    evaluation_strategy="epoch", num_train_epochs=3
+                    ft_model_name,
+                    evaluation_strategy="epoch",
+                    learning_rate=1e-5,
+                    weight_decay=0.01,
+                    num_train_epochs=3,
+                    gradient_accumulation_steps=8,
+                    per_device_train_batch_size=per_device_train_batch_size,
+                    per_device_eval_batch_size=per_device_eval_batch_size,
+                    fp16=(device.type == "cuda"),
+                    remove_unused_columns=False,
                 ),
             },
         },
-        # TaskType.TEXT_GENERATION: {
-        #     "task": AutoModelForCausalLM,
-        #     "models": "gpt2",
-        #     "model_kwargs": {},
-        # },
         # TaskType.CAUSAL_LLM: {
         #     "task": AutoModelForCausalLM,
         #     # "models": "microsoft/Phi-3.5-mini-instruct",
