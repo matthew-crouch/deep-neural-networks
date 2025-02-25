@@ -12,6 +12,8 @@ from pydantic import BaseModel
 from src.llms.pipelines.mode_config import TaskType, config
 from src.llms.pipelines.tokenizer import Tokenizer
 
+from transformers import AutoTokenizer
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -72,25 +74,23 @@ class FineTunerPipeline:
             torch.cuda.empty_cache()
             logger.info(f"Multiple GPUs found. Training on all {torch.cuda.device_count()} GPUs.")
 
-            if trainer.get("model_kwargs").get("device_map"):
+            if trainer.get("use_ddp"):
+                dist.destroy_process_group()
                 dist.init_process_group(
                     backend="nccl",  # Use "gloo" for CPU-based training
                     init_method="env://",
                     rank=3,
                     world_size=4,
-                    timeout=torch.distributed.timedelta(seconds=600)
                 )
-
-
                 # Set device for each process
                 rank = dist.get_rank()
                 torch.cuda.set_device(rank)
-                breakpoint()
+                self.model.to(self.device)
                 self.model = DistributedDataParallel(self.model, device_ids=[rank])
             else:
+                ## This can be depreciated
                 self.model = torch.nn.DataParallel(self.model)
-
-        self.model.to(self.device)
+                self.model.to(self.device)
 
     # TODO: Eventually we could look to abstract this out to a base class
     def _mode_options(self, mode: TaskType) -> dict:
@@ -111,7 +111,6 @@ class FineTunerPipeline:
 
     def run(self, dataset: DatasetDict):
         """Fine-tune the model."""
-        breakpoint()
         trainer = self._mode_options(mode=self.mode)
 
         self.distribute_to_devices(trainer)
