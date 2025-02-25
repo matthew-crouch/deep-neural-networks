@@ -67,6 +67,7 @@ class FineTunerPipeline:
             torch.cuda.empty_cache()
             logger.info(f"Multiple GPUs found. Training on all {torch.cuda.device_count()} GPUs.")
             self.model = torch.nn.DataParallel(self.model)
+
         self.model.to(self.device)
 
     # TODO: Eventually we could look to abstract this out to a base class
