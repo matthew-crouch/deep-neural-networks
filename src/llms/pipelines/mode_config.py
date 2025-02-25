@@ -66,8 +66,7 @@ def config(**kwargs) -> dict:
         TaskType.TEXT_SUMMARISATION: {
             "task": AutoModelForSeq2SeqLM,
             "models": "google/pegasus-xsum",
-            # "model_kwargs": {"device_map": "auto"},
-            "model_kwargs": {},
+            "model_kwargs": {"device_map": "auto"},
             "data_collector": None,
             "trainer": {
                 "type": Seq2SeqTrainer,
