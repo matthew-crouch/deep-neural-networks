@@ -4,15 +4,13 @@ import logging
 
 import torch
 import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel
 from datasets import DatasetDict
 from peft import LoraConfig, get_peft_model
 from pydantic import BaseModel
+from torch.nn.parallel import DistributedDataParallel
 
 from src.llms.pipelines.mode_config import TaskType, config
 from src.llms.pipelines.tokenizer import Tokenizer
-
-from transformers import AutoTokenizer
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -75,22 +73,10 @@ class FineTunerPipeline:
             logger.info(f"Multiple GPUs found. Training on all {torch.cuda.device_count()} GPUs.")
 
             if trainer.get("use_ddp"):
-                dist.destroy_process_group()
-                dist.init_process_group(
-                    backend="nccl",  # Use "gloo" for CPU-based training
-                    init_method="env://",
-                    rank=3,
-                    world_size=4,
-                )
-                # Set device for each process
-                rank = dist.get_rank()
-                torch.cuda.set_device(rank)
                 self.model.to(self.device)
-                self.model = DistributedDataParallel(self.model, device_ids=[rank])
+                self.model = DistributedDataParallel(self.model)
             else:
-                ## This can be depreciated
-                self.model = torch.nn.DataParallel(self.model)
-                self.model.to(self.device)
+                raise ValueError("Unsupported distributed training method.")
 
     # TODO: Eventually we could look to abstract this out to a base class
     def _mode_options(self, mode: TaskType) -> dict:
@@ -113,10 +99,10 @@ class FineTunerPipeline:
         """Fine-tune the model."""
         trainer = self._mode_options(mode=self.mode)
 
-        self.distribute_to_devices(trainer)
-
         tokenizer = Tokenizer(trainer["models"], config=self.fine_tuning_config)
         train_data, eval_data = tokenizer.tokenize(dataset=dataset)
+
+        self.distribute_to_devices(trainer)
 
         auto_model = trainer.get("trainer").get("type")
         trainer = auto_model(
@@ -133,5 +119,7 @@ class FineTunerPipeline:
 
         if self.fine_tuning_config.save_model:
             trainer.save_model()
+
+        dist.destroy_process_group()
 
         return trainer
