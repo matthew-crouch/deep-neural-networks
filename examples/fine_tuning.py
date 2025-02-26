@@ -38,7 +38,7 @@ if __name__ == "__main__":
             "per_device_eval_batch_size": 1,
             "sample_size": 100,
             "lora": {
-                "enabled": False,
+                "enabled": True,
                 "lora_config": LoraConfig(
                     r=8,
                     lora_alpha=32,

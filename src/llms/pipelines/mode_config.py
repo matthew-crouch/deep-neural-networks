@@ -45,7 +45,7 @@ def config(**kwargs) -> dict:
         # },
         TaskType.TEXT_GENERATION: {
             "task": AutoModelForCausalLM,
-            "models": "meta-llama/Llama-3.1-8B",
+            "models": "meta-llama/Llama-3.2-3B-Instruct",
             "use_ddp": False,
             "model_kwargs": {},
             "trainer": {

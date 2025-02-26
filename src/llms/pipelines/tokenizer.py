@@ -40,14 +40,14 @@ class Tokenizer:
             dataset[self.config.text_column],
             truncation=True,
             padding="max_length",
-            max_length=512,
+            max_length=5020,
         )
         with self.auto_tokenizer.as_target_tokenizer():
             labels = self.auto_tokenizer(
                 dataset[self.config.target_column],
                 truncation=True,
                 padding="max_length",
-                max_length=150,
+                max_length=5020,
             )
 
         labels["input_ids"] = [
