@@ -5,7 +5,6 @@ from enum import Enum
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
-    AutoModelForSequenceClassification,
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
     Trainer,
@@ -46,8 +45,9 @@ def config(**kwargs) -> dict:
         # },
         TaskType.TEXT_GENERATION: {
             "task": AutoModelForCausalLM,
-            "models": "meta-llama/Llama-3.1-8B",
-            "model_kwargs": {"device_map": "auto"},
+            "models": "meta-llama/Llama-3.2-3B-Instruct",
+            "use_ddp": False,
+            "model_kwargs": {},
             "trainer": {
                 "type": Trainer,
                 "trainer_kwargs": TrainingArguments(
@@ -64,33 +64,12 @@ def config(**kwargs) -> dict:
                 ),
             },
         },
-        # TaskType.CAUSAL_LLM: {
-        #     "task": AutoModelForCausalLM,
-        #     # "models": "microsoft/Phi-3.5-mini-instruct",
-        #     "models": "gpt2",
-        #     "model_kwargs": {"device_map": "balanced"},
-        #     # "model_kwargs": {},
-        #     "data_collector": None,
-        #     "trainer": {
-        #         "type": Trainer,
-        #         "trainer_kwargs": TrainingArguments(
-        #             "test-finetuned",
-        #             evaluation_strategy="epoch",
-        #             learning_rate=1e-5,
-        #             weight_decay=0.01,
-        #             num_train_epochs=3,
-        #             gradient_accumulation_steps=8,
-        #             per_device_train_batch_size=per_device_train_batch_size,
-        #             per_device_eval_batch_size=per_device_eval_batch_size,
-        #             fp16=(device.type == "cuda"),
-        #         ),
-        #     },
-        # },
         TaskType.TEXT_SUMMARISATION: {
             "task": AutoModelForSeq2SeqLM,
             "models": "google/pegasus-xsum",
             "model_kwargs": {},
             "data_collector": None,
+            "use_ddp": True,
             "trainer": {
                 "type": Seq2SeqTrainer,
                 "trainer_kwargs": Seq2SeqTrainingArguments(

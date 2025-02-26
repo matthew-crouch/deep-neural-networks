@@ -25,6 +25,9 @@ class Tokenizer:
         :param config: dict: The configuration for the tokenizer.
         """
         self.auto_tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        if self.auto_tokenizer.pad_token_id is None:
+            self.auto_tokenizer.pad_token = self.auto_tokenizer.eos_token
         self.config = config
 
     def tokenizer_function(self, dataset: DatasetDict) -> DatasetDict:
@@ -37,20 +40,20 @@ class Tokenizer:
             dataset[self.config.text_column],
             truncation=True,
             padding="max_length",
-            max_length=512,
+            max_length=5020,
         )
         with self.auto_tokenizer.as_target_tokenizer():
             labels = self.auto_tokenizer(
                 dataset[self.config.target_column],
                 truncation=True,
                 padding="max_length",
-                max_length=150,
+                max_length=5020,
             )
 
-        # labels["input_ids"] = [
-        #     [(token if token != self.auto_tokenizer.pad_token_id else -100) for token in label]
-        #     for label in labels["input_ids"]
-        # ]
+        labels["input_ids"] = [
+            [(token if token != self.auto_tokenizer.pad_token_id else -100) for token in label]
+            for label in labels["input_ids"]
+        ]
         model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
