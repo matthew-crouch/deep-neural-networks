@@ -7,6 +7,7 @@ import torch.distributed as dist
 from datasets import DatasetDict
 from peft import LoraConfig, get_peft_model
 from pydantic import BaseModel
+from torch.nn import DataParallel
 from torch.nn.parallel import DistributedDataParallel
 
 from src.llms.pipelines.mode_config import TaskType, config
@@ -73,10 +74,12 @@ class FineTunerPipeline:
             logger.info(f"Multiple GPUs found. Training on all {torch.cuda.device_count()} GPUs.")
 
             if trainer.get("use_ddp"):
+                # This must be called and run with the accelerate framework
                 self.model.to(self.device)
                 self.model = DistributedDataParallel(self.model)
             else:
-                raise ValueError("Unsupported distributed training method.")
+                self.model.to(self.device)
+                self.model = DataParallel(self.model)
 
     # TODO: Eventually we could look to abstract this out to a base class
     def _mode_options(self, mode: TaskType) -> dict:

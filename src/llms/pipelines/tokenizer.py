@@ -25,6 +25,9 @@ class Tokenizer:
         :param config: dict: The configuration for the tokenizer.
         """
         self.auto_tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        if self.auto_tokenizer.pad_token_id is None:
+            self.auto_tokenizer.pad_token = self.auto_tokenizer.eos_token
         self.config = config
 
     def tokenizer_function(self, dataset: DatasetDict) -> DatasetDict:

@@ -29,7 +29,7 @@ from src.llms.fine_tuning_pipeline import FineTunerPipeline, TaskType
 if __name__ == "__main__":
     dataset = load_dataset("xsum", trust_remote_code=True)
     ft_pipeline = FineTunerPipeline(
-        mode=TaskType.TEXT_SUMMARISATION,
+        mode=TaskType.TEXT_GENERATION,
         fine_tuning_config={
             "ft_model_name": "custom_model",
             "text_column": "document",
