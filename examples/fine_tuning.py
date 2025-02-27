@@ -21,8 +21,10 @@ In th native config we use zero_stage 2 which will shard the gardients and optim
 but not the raw parameters.
 """
 
+import torch
 from datasets import load_dataset
 from peft import LoraConfig
+from transformers import BitsAndBytesConfig
 
 from src.llms.fine_tuning_pipeline import FineTunerPipeline, TaskType
 
@@ -36,7 +38,18 @@ if __name__ == "__main__":
             "target_column": "summary",
             "per_device_train_batch_size": 1,
             "per_device_eval_batch_size": 1,
-            "sample_size": 100,
+            "gradient_accumulation_steps": 8,
+            "sample_size": 10,
+            "quantisation": {
+                "enabled": True,
+                "load_in_4bit": True,
+                "quantization_config": BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=torch.float16,
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_quant_type="nf4",
+                ),
+            },
             "lora": {
                 "enabled": True,
                 "lora_config": LoraConfig(

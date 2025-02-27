@@ -28,7 +28,7 @@ class FineTuningConfig(BaseModel):
     text_column: str
     target_column: str
     lora: dict = {"enabled": False, "lora_config": LoraConfig()}
-    quantisation: bool = False
+    quantisation: dict = {"enabled": False, "quantisation_config": LoraConfig()}
     per_device_train_batch_size: int = 2
     per_device_eval_batch_size: int = 2
     sample_size: int = 10
@@ -60,12 +60,27 @@ class FineTunerPipeline:
             transformers.get("model_kwargs"),
         )
 
-        self.model = transformer_model.from_pretrained(
-            model_name, torch_dtype="auto", **model_kwargs
+        if self.fine_tuning_config.quantisation.get(
+            "load_in_4bit"
+        ) and not self.fine_tuning_config.lora.get("enabled"):
+            raise ValueError(
+                "You must add Trainable Adapters since you"
+                "cannot perform fine-tuning on purely quantised models"
+            )
+
+        model = transformer_model.from_pretrained(
+            model_name,
+            # torch_dtype="auto",
+            quantization_config=self.fine_tuning_config.quantisation.get("quantization_config"),
+            **model_kwargs,
         )
 
         if self.fine_tuning_config.lora.get("enabled"):
-            self.model = get_peft_model(self.model, self.fine_tuning_config.lora.get("lora_config"))
+            model = get_peft_model(model, self.fine_tuning_config.lora.get("lora_config"))
+
+        self.model = model
+        logger.info(f"Total Model Size in RAM: {self.get_model_size_bytes(self.model) * 1e-9} GB")
+        logger.info(f"Number of Parameters: {self.model.num_parameters() * 1e-9} B")
 
     def distribute_to_devices(self, trainer: dict):
         """Distribute the model to multiple GPUs."""
@@ -75,11 +90,23 @@ class FineTunerPipeline:
 
             if trainer.get("use_ddp"):
                 # This must be called and run with the accelerate framework
-                self.model.to(self.device)
+                # self.model.to(self.device)
                 self.model = DistributedDataParallel(self.model)
-            else:
-                self.model.to(self.device)
-                self.model = DataParallel(self.model)
+        else:
+            # self.model.to(self.device)
+            self.model = DataParallel(self.model)
+
+    def get_model_size_bytes(self, model: torch.nn.Module) -> int:
+        """Calculate the total number of bytes occupied by model's params + buffers."""
+        param_size = 0
+        for param in model.parameters():
+            param_size += param.numel() * param.element_size()
+
+        buffer_size = 0
+        for buf in model.buffers():
+            buffer_size += buf.numel() * buf.element_size()
+
+        return param_size + buffer_size
 
     # TODO: Eventually we could look to abstract this out to a base class
     def _mode_options(self, mode: TaskType) -> dict:
@@ -113,8 +140,8 @@ class FineTunerPipeline:
             args=trainer.get("trainer").get("trainer_kwargs"),
             ## We need to generalise this to support other tasks
             train_dataset=train_data.remove_columns(["document", "summary", "id"]),
-            eval_dataset=eval_data.remove_columns(["document", "summary", "id"]),
-            tokenizer=tokenizer.auto_tokenizer,
+            eval_dataset=train_data.remove_columns(["document", "summary", "id"]),
+            # tokenizer=tokenizer.auto_tokenizer,
         )
         logger.info("Starting Fine Tuning...")
         trainer.train()
