@@ -90,10 +90,8 @@ class FineTunerPipeline:
 
             if trainer.get("use_ddp"):
                 # This must be called and run with the accelerate framework
-                # self.model.to(self.device)
                 self.model = DistributedDataParallel(self.model)
         else:
-            # self.model.to(self.device)
             self.model = DataParallel(self.model)
 
     def get_model_size_bytes(self, model: torch.nn.Module) -> int:
@@ -108,7 +106,6 @@ class FineTunerPipeline:
 
         return param_size + buffer_size
 
-    # TODO: Eventually we could look to abstract this out to a base class
     def _mode_options(self, mode: TaskType) -> dict:
         """Model options for the pipeline.
 
@@ -132,16 +129,15 @@ class FineTunerPipeline:
         tokenizer = Tokenizer(trainer["models"], config=self.fine_tuning_config)
         train_data, eval_data = tokenizer.tokenize(dataset=dataset)
 
-        self.distribute_to_devices(trainer)
+        # self.distribute_to_devices(trainer)
 
         auto_model = trainer.get("trainer").get("type")
         trainer = auto_model(
             model=self.model,
             args=trainer.get("trainer").get("trainer_kwargs"),
-            ## We need to generalise this to support other tasks
+            ## Generalise this to support other tasks
             train_dataset=train_data.remove_columns(["document", "summary", "id"]),
-            eval_dataset=train_data.remove_columns(["document", "summary", "id"]),
-            # tokenizer=tokenizer.auto_tokenizer,
+            eval_dataset=eval_data.remove_columns(["document", "summary", "id"]),
         )
         logger.info("Starting Fine Tuning...")
         trainer.train()

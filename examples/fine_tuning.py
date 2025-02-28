@@ -38,7 +38,7 @@ if __name__ == "__main__":
             "target_column": "summary",
             "per_device_train_batch_size": 1,
             "per_device_eval_batch_size": 1,
-            "gradient_accumulation_steps": 8,
+            "gradient_accumulation_steps": 1,
             "sample_size": 10,
             "quantisation": {
                 "enabled": True,
@@ -58,7 +58,7 @@ if __name__ == "__main__":
                     lora_dropout=0.1,
                     bias="none",
                     # target_modules=["o_proj", "qkv_proj"],
-                    target_modules=["q_proj", "v_proj"],
+                    # target_modules=["q_proj", "v_proj"],
                 ),
             },
         },
