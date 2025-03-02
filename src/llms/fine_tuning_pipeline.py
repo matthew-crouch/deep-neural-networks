@@ -6,8 +6,6 @@ import torch
 from datasets import DatasetDict
 from peft import LoraConfig, get_peft_model
 from pydantic import BaseModel
-from torch.nn import DataParallel
-from torch.nn.parallel import DistributedDataParallel
 
 from src.llms.pipelines.mode_config import TaskType, config
 from src.llms.pipelines.tokenizer import Tokenizer
@@ -82,19 +80,7 @@ class FineTunerPipeline:
         logger.info(f"Total Model Size in RAM: {round(model_size * 1e-9, 4)} GB")
         logger.info(f"Number of Parameters: {round(num_parameters * 1e-9, 4)} B")
 
-    def distribute_to_devices(self, trainer: dict):
-        """Distribute the model to multiple GPUs."""
-        if torch.cuda.device_count() > 1:
-            torch.cuda.empty_cache()
-            logger.info(f"Multiple GPUs found. Training on all {torch.cuda.device_count()} GPUs.")
-
-            if trainer.get("use_ddp"):
-                # This must be called and run with the accelerate framework
-                self.model = DistributedDataParallel(self.model)
-        else:
-            self.model = DataParallel(self.model)
-
-    def get_model_size_bytes(self, model: torch.nn.Module) -> tuple():
+    def get_model_size_bytes(self, model: torch.nn.Module) -> tuple:
         """Calculate the model size.
 
         Calculate total number of bytes occupied by model's params + buffers
@@ -133,8 +119,6 @@ class FineTunerPipeline:
         tokenizer = Tokenizer(trainer["models"], config=self.fine_tuning_config)
         train_data, eval_data = tokenizer.tokenize(dataset=dataset)
 
-        # self.distribute_to_devices(trainer)
-
         auto_model = trainer.get("trainer").get("type")
         trainer = auto_model(
             model=self.model,
@@ -149,8 +133,5 @@ class FineTunerPipeline:
 
         if self.fine_tuning_config.save_model:
             trainer.save_model("./custom_model")
-
-        # Not required when using accelerate
-        # dist.destroy_process_group()
 
         return trainer
