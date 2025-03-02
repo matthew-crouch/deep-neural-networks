@@ -35,8 +35,8 @@ def config(**kwargs) -> dict:
         TaskType.TEXT_GENERATION: {
             "task": AutoModelForCausalLM,
             # "models": "meta-llama/Llama-3.2-3B-Instruct",
-            "models": "gpt2",
-            # "models": "meta-llama/Llama-3.2-1B",
+            # "models": "gpt2",
+            "models": "meta-llama/Llama-3.2-1B",
             "use_ddp": True,
             "model_kwargs": {},
             "trainer": {
@@ -52,7 +52,7 @@ def config(**kwargs) -> dict:
                     per_device_eval_batch_size=per_device_eval_batch_size,
                     fp16=(device.type == "cuda"),
                     remove_unused_columns=False,
-                    deepspeed="/home/ubuntu/deep-neural-networks/zero_stage2_config.json",
+                    # deepspeed="/home/ubuntu/deep-neural-networks/zero_stage2_config.json",
                 ),
             },
         },

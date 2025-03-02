@@ -3,7 +3,6 @@
 import logging
 
 import torch
-import torch.distributed as dist
 from datasets import DatasetDict
 from peft import LoraConfig, get_peft_model
 from pydantic import BaseModel
@@ -32,7 +31,7 @@ class FineTuningConfig(BaseModel):
     per_device_train_batch_size: int = 2
     per_device_eval_batch_size: int = 2
     sample_size: int = 10
-    save_model: bool = False
+    save_model: bool = True
 
 
 class FineTunerPipeline:
@@ -79,8 +78,9 @@ class FineTunerPipeline:
             model = get_peft_model(model, self.fine_tuning_config.lora.get("lora_config"))
 
         self.model = model
-        logger.info(f"Total Model Size in RAM: {self.get_model_size_bytes(self.model) * 1e-9} GB")
-        logger.info(f"Number of Parameters: {self.model.num_parameters() * 1e-9} B")
+        model_size, num_parameters = self.get_model_size_bytes(self.model)
+        logger.info(f"Total Model Size in RAM: {round(model_size * 1e-9, 4)} GB")
+        logger.info(f"Number of Parameters: {round(num_parameters * 1e-9, 4)} B")
 
     def distribute_to_devices(self, trainer: dict):
         """Distribute the model to multiple GPUs."""
@@ -94,8 +94,12 @@ class FineTunerPipeline:
         else:
             self.model = DataParallel(self.model)
 
-    def get_model_size_bytes(self, model: torch.nn.Module) -> int:
-        """Calculate the total number of bytes occupied by model's params + buffers."""
+    def get_model_size_bytes(self, model: torch.nn.Module) -> tuple():
+        """Calculate the model size.
+
+        Calculate total number of bytes occupied by model's params + buffers
+        and return the number of parameters in the model.
+        """
         param_size = 0
         for param in model.parameters():
             param_size += param.numel() * param.element_size()
@@ -104,7 +108,7 @@ class FineTunerPipeline:
         for buf in model.buffers():
             buffer_size += buf.numel() * buf.element_size()
 
-        return param_size + buffer_size
+        return (param_size + buffer_size, self.model.num_parameters())
 
     def _mode_options(self, mode: TaskType) -> dict:
         """Model options for the pipeline.
@@ -144,8 +148,9 @@ class FineTunerPipeline:
         logger.info("Fine Tuning Completed...")
 
         if self.fine_tuning_config.save_model:
-            trainer.save_model()
+            trainer.save_model("./custom_model")
 
-        dist.destroy_process_group()
+        # Not required when using accelerate
+        # dist.destroy_process_group()
 
         return trainer
