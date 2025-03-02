@@ -28,7 +28,8 @@ def scrape_text_and_links(url):
             for sibling in heading.find_next_siblings():
                 if sibling.name in ["h2", "h3", "h4"]:
                     break
-                if sibling.name in ["p", "ul", "ol"]:  # Collect paragraphs and lists
+                # Collect paragraphs and lists
+                if sibling.name in ["p", "ul", "ol"]:
                     content.append(sibling.get_text(strip=True))
 
             section_text = "\n".join(content)
