@@ -132,6 +132,6 @@ class FineTunerPipeline:
         logger.info("Fine Tuning Completed...")
 
         if self.fine_tuning_config.save_model:
-            trainer.save_model("./custom_model")
+            self.model.save_pretrained("./custom_model")
 
         return trainer
