@@ -58,9 +58,14 @@ def convert_to_dataset_dict(sources):
         data.append(text_content)
 
     df = pd.concat(data)
-    df = df[~df["heading"].str.contains("Source|Images", case=False, na=False)]
+    df = df[
+        ~df["heading"].str.contains(
+            "Source|Images|Overview|Community|Advertise", case=False, na=False
+        )
+    ]
     df = df.rename(columns={"heading": "summary", "text": "document"}).reset_index(drop=True)
     df["id"] = [random.choice(range(1000)) for x in range(len(df))]
     dataset = Dataset.from_pandas(df)
-    dataset_dict = DatasetDict({"train": dataset, "test": dataset})
+    dataset = dataset.train_test_split(test_size=0.1, seed=42)
+    dataset_dict = DatasetDict({"train": dataset["train"], "test": dataset["test"]})
     return dataset_dict, links
