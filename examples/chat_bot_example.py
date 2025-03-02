@@ -1,0 +1,20 @@
+"""Example of inference for a chat bot style model."""
+
+from langchain_huggingface.llms import HuggingFacePipeline
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+
+if __name__ == "__main__":
+    model_name = "custom_model"
+    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+
+    chat_pipeline = pipeline(
+        "text-generation", model=model, tokenizer=tokenizer, max_new_tokens=100
+    )
+
+    chat_model = HuggingFacePipeline(pipeline=chat_pipeline)
+
+    while True:
+        user = input("User: ")
+        response = chat_model.invoke(user)
+        print("Model: ", response)

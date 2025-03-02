@@ -32,21 +32,12 @@ def config(**kwargs) -> dict:
     device = kwargs.get("device")
     ft_model_name = kwargs.get("ft_model_name")
     mode_options = {
-        # TaskType.SEQUENCE_CLASSIFICATION: {
-        #     "task": AutoModelForSequenceClassification,
-        #     "models": "google-bert/bert-base-cased",
-        #     "model_kwargs": {"num_labels": 2},
-        #     "trainer": {
-        #         "type": Trainer,
-        #         "trainer_kwargs": TrainingArguments(
-        #             evaluation_strategy="epoch", num_train_epochs=3
-        #         ),
-        #     },
-        # },
         TaskType.TEXT_GENERATION: {
             "task": AutoModelForCausalLM,
-            "models": "meta-llama/Llama-3.2-3B-Instruct",
-            "use_ddp": False,
+            # "models": "meta-llama/Llama-3.2-3B-Instruct",
+            # "models": "gpt2",
+            "models": "meta-llama/Llama-3.2-1B",
+            "use_ddp": True,
             "model_kwargs": {},
             "trainer": {
                 "type": Trainer,
@@ -55,12 +46,13 @@ def config(**kwargs) -> dict:
                     evaluation_strategy="epoch",
                     learning_rate=1e-5,
                     weight_decay=0.01,
-                    num_train_epochs=3,
-                    gradient_accumulation_steps=8,
+                    num_train_epochs=1,
+                    gradient_accumulation_steps=1,
                     per_device_train_batch_size=per_device_train_batch_size,
                     per_device_eval_batch_size=per_device_eval_batch_size,
                     fp16=(device.type == "cuda"),
                     remove_unused_columns=False,
+                    # deepspeed="/home/ubuntu/deep-neural-networks/zero_stage2_config.json",
                 ),
             },
         },
