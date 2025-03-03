@@ -21,22 +21,45 @@ In th native config we use zero_stage 2 which will shard the gardients and optim
 but not the raw parameters.
 """
 
-from datasets import load_dataset
+# from datasets import load_dataset
 from peft import LoraConfig
 
+from src.dataset.web_scrape import convert_to_dataset_dict
 from src.llms.fine_tuning_pipeline import FineTunerPipeline, TaskType
 
 if __name__ == "__main__":
-    dataset = load_dataset("xsum", trust_remote_code=True)
+    # dataset = load_dataset("xsum", trust_remote_code=True)
+    warhammer_sources = [
+        "https://warhammer40k.fandom.com/wiki/Chaos",
+        "https://warhammer40k.fandom.com/wiki/Space_Marines",
+        "https://warhammer40k.fandom.com/wiki/Tau",
+        "https://warhammer40k.fandom.com/wiki/Eldar",
+        "https://warhammer40k.fandom.com/wiki/Necrons",
+        "https://warhammer40k.fandom.com/wiki/Orks",
+        "https://warhammer40k.fandom.com/wiki/Tyranids",
+        "https://warhammer40k.fandom.com/wiki/Imperium_of_Man",
+        "https://warhammer40k.fandom.com/wiki/Adeptus_Astartes",
+        "https://warhammer40k.fandom.com/wiki/Imperial_Guard",
+        "https://warhammer40k.fandom.com/wiki/Imperial_Navy",
+        "https://warhammer40k.fandom.com/wiki/Inquisition",
+        "https://warhammer40k.fandom.com/wiki/Adeptus_Mechanicus",
+        "https://warhammer40k.fandom.com/wiki/Astra_Telepathica",
+        "https://warhammer40k.fandom.com/wiki/Adeptus_Arbites",
+        "https://warhammer40k.fandom.com/wiki/Adepta_Sororitas",
+        "https://warhammer40k.fandom.com/wiki/Horus_Heresy",
+        "https://warhammer40k.fandom.com/wiki/Great_Crusade",
+    ]
+    dataset, _ = convert_to_dataset_dict(sources=warhammer_sources)
+
     ft_pipeline = FineTunerPipeline(
         mode=TaskType.TEXT_GENERATION,
         fine_tuning_config={
-            "ft_model_name": "custom_model",
+            "ft_model_name": "warhammer_model",
             "text_column": "document",
             "target_column": "summary",
             "per_device_train_batch_size": 1,
             "per_device_eval_batch_size": 1,
-            "sample_size": 100,
+            # "sample_size": len(dataset["train"]),
             "lora": {
                 "enabled": True,
                 "lora_config": LoraConfig(

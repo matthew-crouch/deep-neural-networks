@@ -117,7 +117,7 @@ class FineTunerPipeline:
         trainer = self._mode_options(mode=self.mode)
 
         tokenizer = Tokenizer(trainer["models"], config=self.fine_tuning_config)
-        train_data, eval_data = tokenizer.tokenize(dataset=dataset)
+        train_data, eval_data = tokenizer.tokenize(dataset=dataset, limit=False)
 
         auto_model = trainer.get("trainer").get("type")
         trainer = auto_model(
@@ -132,6 +132,7 @@ class FineTunerPipeline:
         logger.info("Fine Tuning Completed...")
 
         if self.fine_tuning_config.save_model:
-            self.model.save_pretrained("./custom_model")
+            self.model.save_pretrained(self.fine_tuning_config.ft_model_name)
+            logger.info(f"Model saved to {self.fine_tuning_config.ft_model_name}")
 
         return trainer
