@@ -70,7 +70,7 @@ class FineTunerPipeline:
 
         model = transformer_model.from_pretrained(
             model_name,
-            # torch_dtype="auto",
+            torch_dtype=torch.float16,
             quantization_config=self.fine_tuning_config.quantisation.get("quantization_config"),
             **model_kwargs,
         )

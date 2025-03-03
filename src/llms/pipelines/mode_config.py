@@ -35,7 +35,8 @@ def config(**kwargs) -> dict:
         TaskType.TEXT_GENERATION: {
             "task": AutoModelForCausalLM,
             # "models": "meta-llama/Llama-3.2-3B-Instruct",
-            "models": "gpt2",
+            "models": "LoftQ/Mistral-7B-v0.1-4bit-64rank",
+            # "models": "gpt2",
             # "models": "meta-llama/Llama-3.2-1B",
             "use_ddp": True,
             "model_kwargs": {},

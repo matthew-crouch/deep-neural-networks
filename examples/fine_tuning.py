@@ -45,18 +45,20 @@ if __name__ == "__main__":
                 "load_in_4bit": True,
                 "quantization_config": BitsAndBytesConfig(
                     load_in_4bit=True,
-                    bnb_4bit_compute_dtype=torch.float16,
-                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                    bnb_4bit_use_double_quant=False,
                     bnb_4bit_quant_type="nf4",
                 ),
             },
             "lora": {
                 "enabled": True,
                 "lora_config": LoraConfig(
+                    task_type="CAUSAL_LM",
                     r=8,
                     lora_alpha=32,
                     lora_dropout=0.1,
                     bias="none",
+                    target_modules="all-linear",
                     # target_modules=["o_proj", "qkv_proj"],
                     # target_modules=["q_proj", "v_proj"],
                 ),
