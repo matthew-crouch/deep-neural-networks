@@ -59,7 +59,7 @@ if __name__ == "__main__":
             "target_column": "summary",
             "per_device_train_batch_size": 1,
             "per_device_eval_batch_size": 1,
-            "sample_size": 84,
+            # "sample_size": len(dataset["train"]),
             "lora": {
                 "enabled": True,
                 "lora_config": LoraConfig(
