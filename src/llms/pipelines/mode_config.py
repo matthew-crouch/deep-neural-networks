@@ -9,6 +9,7 @@ from transformers import (
     Seq2SeqTrainingArguments,
     Trainer,
     TrainingArguments,
+    AutoModelForSequenceClassification,
 )
 
 
@@ -39,6 +40,28 @@ def config(**kwargs) -> dict:
             "models": "meta-llama/Llama-3.2-1B",
             "use_ddp": True,
             "model_kwargs": {},
+            "trainer": {
+                "type": Trainer,
+                "trainer_kwargs": TrainingArguments(
+                    ft_model_name,
+                    evaluation_strategy="epoch",
+                    learning_rate=1e-5,
+                    weight_decay=0.01,
+                    num_train_epochs=10,
+                    gradient_accumulation_steps=1,
+                    per_device_train_batch_size=per_device_train_batch_size,
+                    per_device_eval_batch_size=per_device_eval_batch_size,
+                    fp16=(device.type == "cuda"),
+                    remove_unused_columns=False,
+                    # deepspeed="/home/ubuntu/deep-neural-networks/zero_stage2_config.json",
+                ),
+            },
+        },
+        TaskType.SEQUENCE_CLASSIFICATION: {
+            "task": AutoModelForSequenceClassification,
+            "models": "meta-llama/Llama-3.2-1B",
+            "use_ddp": True,
+            "model_kwargs": {"num_labels": 4},
             "trainer": {
                 "type": Trainer,
                 "trainer_kwargs": TrainingArguments(

@@ -22,46 +22,49 @@ but not the raw parameters.
 """
 
 import torch
+
 # from datasets import load_dataset
 from peft import LoraConfig
 from transformers import BitsAndBytesConfig
-
+import pandas as pd
 from src.dataset.web_scrape import convert_to_dataset_dict
 from src.llms.fine_tuning_pipeline import FineTunerPipeline, TaskType
 
+
+def fetch_fail_dataset():
+    dataset = pd.read_csv(
+        "./data/Explore_ml4v_eu_ml4v_development_nevis_eap_triage_data_updated_2025_02_26_15_21_24.csv"
+    )
+    dataset = dataset[["fail_message", "fail_type"]]
+    dataset = dataset.rename(
+        columns={"fail_type": "summary", "fail_message": "document"}
+    ).reset_index(drop=True)
+    dataset = dataset.dropna()
+    dataset = dataset[
+        (dataset["summary"] != "nul")
+        & (dataset["summary"] != "UNIMPL")
+        & (dataset["summary"] != "Uncategorised")
+        & (dataset["summary"] != "Test")
+    ]
+    vc = dataset.summary.value_counts()
+    dataset["summary"] = dataset["summary"].apply(lambda cat: f"This is a {cat} fail")
+    return dataset.sample(20000).reset_index(drop=True)
+
+
 if __name__ == "__main__":
     # dataset = load_dataset("xsum", trust_remote_code=True)
-    warhammer_sources = [
-        "https://warhammer40k.fandom.com/wiki/Chaos",
-        "https://warhammer40k.fandom.com/wiki/Space_Marines",
-        "https://warhammer40k.fandom.com/wiki/Tau",
-        "https://warhammer40k.fandom.com/wiki/Eldar",
-        "https://warhammer40k.fandom.com/wiki/Necrons",
-        "https://warhammer40k.fandom.com/wiki/Orks",
-        "https://warhammer40k.fandom.com/wiki/Tyranids",
-        "https://warhammer40k.fandom.com/wiki/Imperium_of_Man",
-        "https://warhammer40k.fandom.com/wiki/Adeptus_Astartes",
-        "https://warhammer40k.fandom.com/wiki/Imperial_Guard",
-        "https://warhammer40k.fandom.com/wiki/Imperial_Navy",
-        "https://warhammer40k.fandom.com/wiki/Inquisition",
-        "https://warhammer40k.fandom.com/wiki/Adeptus_Mechanicus",
-        "https://warhammer40k.fandom.com/wiki/Astra_Telepathica",
-        "https://warhammer40k.fandom.com/wiki/Adeptus_Arbites",
-        "https://warhammer40k.fandom.com/wiki/Adepta_Sororitas",
-        "https://warhammer40k.fandom.com/wiki/Horus_Heresy",
-        "https://warhammer40k.fandom.com/wiki/Great_Crusade",
-    ]
-    dataset, _ = convert_to_dataset_dict(sources=warhammer_sources)
+    dataset = fetch_fail_dataset()
+    dataset = convert_to_dataset_dict(dataset)
 
     ft_pipeline = FineTunerPipeline(
-        mode=TaskType.TEXT_GENERATION,
+        mode=TaskType.SEQUENCE_CLASSIFICATION,
         fine_tuning_config={
-            "ft_model_name": "warhammer_model",
+            "ft_model_name": "llama-1b-fail-message",
             "text_column": "document",
             "target_column": "summary",
             "per_device_train_batch_size": 1,
             "per_device_eval_batch_size": 1,
-            # "sample_size": len(dataset["train"]),
+            "sample_size": 1000,
             "quantisation": {
                 "enabled": True,
                 "load_in_4bit": True,
@@ -86,4 +89,3 @@ if __name__ == "__main__":
         },
     )
     _ = ft_pipeline.run(dataset=dataset)
-

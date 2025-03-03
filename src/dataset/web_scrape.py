@@ -50,22 +50,31 @@ def scrape_text_and_links(url):
         return None, []
 
 
-def convert_to_dataset_dict(sources):
-    """Convert a Pandas DataFrame into a Hugging Face DatasetDict."""
-    data = []
-    for url in sources:
-        text_content, links = scrape_text_and_links(url)
-        data.append(text_content)
+# def convert_to_dataset_dict(sources):
+#     """Convert a Pandas DataFrame into a Hugging Face DatasetDict."""
+#     data = []
+#     for url in sources:
+#         text_content, links = scrape_text_and_links(url)
+#         data.append(text_content)
 
-    df = pd.concat(data)
-    df = df[
-        ~df["heading"].str.contains(
-            "Source|Images|Overview|Community|Advertise", case=False, na=False
-        )
-    ]
-    df = df.rename(columns={"heading": "summary", "text": "document"}).reset_index(drop=True)
+#     df = pd.concat(data)
+#     df = df[
+#         ~df["heading"].str.contains(
+#             "Source|Images|Overview|Community|Advertise", case=False, na=False
+#         )
+#     ]
+#     df = df.rename(columns={"heading": "summary", "text": "document"}).reset_index(drop=True)
+#     df["id"] = [random.choice(range(1000)) for x in range(len(df))]
+#     dataset = Dataset.from_pandas(df)
+#     dataset = dataset.train_test_split(test_size=0.1, seed=42)
+#     dataset_dict = DatasetDict({"train": dataset["train"], "test": dataset["test"]})
+#     return dataset_dict, links
+
+
+def convert_to_dataset_dict(df):
+    """Convert a Pandas DataFrame into a Hugging Face DatasetDict."""
     df["id"] = [random.choice(range(1000)) for x in range(len(df))]
     dataset = Dataset.from_pandas(df)
     dataset = dataset.train_test_split(test_size=0.1, seed=42)
     dataset_dict = DatasetDict({"train": dataset["train"], "test": dataset["test"]})
-    return dataset_dict, links
+    return dataset_dict
