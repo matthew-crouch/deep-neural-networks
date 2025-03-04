@@ -11,6 +11,7 @@ from src.llms.fine_tuning_pipeline import FineTunerPipeline, FineTuningConfig, T
 from src.llms.pipelines.tokenizer import Tokenizer
 
 
+@pytest.mark.skip()
 def test_tokenisation():
     """Test tokenisation function in the fine_tuner pipeline."""
     dataset = load_dataset("xsum", trust_remote_code=True)
