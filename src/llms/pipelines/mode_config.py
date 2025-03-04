@@ -72,7 +72,7 @@ def config(**kwargs) -> dict:
                     evaluation_strategy="epoch",
                     learning_rate=1e-5,
                     weight_decay=0.01,
-                    num_train_epochs=10,
+                    num_train_epochs=3,
                     gradient_accumulation_steps=1,
                     per_device_train_batch_size=per_device_train_batch_size,
                     per_device_eval_batch_size=per_device_eval_batch_size,
