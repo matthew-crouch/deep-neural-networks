@@ -34,7 +34,6 @@ class WeightedBCEWithLogitsLoss(nn.Module):
 
     def __init__(self, weights):
         """Initialise the WeightedBCE class."""
-        # super(WeightedBCEWithLogitsLoss, self).__init__()
         super().__init__()
         self.weights = torch.tensor(weights, dtype=torch.float32)
 

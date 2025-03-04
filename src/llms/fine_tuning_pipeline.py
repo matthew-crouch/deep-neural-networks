@@ -142,7 +142,6 @@ class FineTunerPipeline:
         trainer = auto_model(
             model=self.model,
             args=trainer.get("trainer").get("trainer_kwargs"),
-            ## Generalise this to support other tasks
             train_dataset=train_data.remove_columns(["id"]),
             eval_dataset=eval_data.remove_columns(["id"]),
             compute_metrics=self.fine_tuning_config.compute_metrics,
