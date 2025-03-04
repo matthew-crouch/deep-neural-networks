@@ -58,6 +58,7 @@ class Tokenizer:
         return model_inputs
 
     def mulit_class_tokenizer(self, dataset):
+        """Add multi-class tokenizer."""
         return self.auto_tokenizer(
             dataset["text"], padding="max_length", truncation=True, max_length=256
         )

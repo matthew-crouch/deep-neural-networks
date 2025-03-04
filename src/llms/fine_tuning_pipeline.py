@@ -2,6 +2,7 @@
 
 import logging
 from typing import Any
+
 import torch
 from datasets import DatasetDict
 from peft import LoraConfig, get_peft_model
@@ -34,6 +35,8 @@ class FineTuningConfig(BaseModel):
     compute_metrics: Any = None
 
     class Config:
+        """dataclass config."""
+
         arbitrary_types_allowed = True
 
 
@@ -45,7 +48,6 @@ class FineTunerPipeline:
     text generation, and summarisation tasks.
     """
 
-    # TODO: Tidy this function up and clean
     def __init__(
         self,
         mode: TaskType,
@@ -63,7 +65,7 @@ class FineTunerPipeline:
         logger.info(f"Number of Parameters: {round(num_parameters * 1e-9, 4)} B")
 
     def _initialise_model_setup(self):
-        """"""
+        """Initialise the model setup."""
         transformers = self._mode_options(self.mode)
         transformer_model, model_name, model_kwargs = (
             transformers.get("task"),
@@ -82,11 +84,13 @@ class FineTunerPipeline:
         if self.fine_tuning_config.class_weights_tensor is not None:
             model_kwargs["num_labels"] = len(self.fine_tuning_config.class_weights_tensor)
 
-        # TODO Tidy this up, iots not working as expected
+        quant_config = None
+        if self.fine_tuning_config.quantisation.get("enabled"):
+            quant_config = self.fine_tuning_config.quantisation.get("quantization_config")
+
         model = transformer_model.from_pretrained(
             model_name,
-            # torch_dtype="auto",
-            quantization_config=self.fine_tuning_config.quantisation.get("quantization_config"),
+            quantization_config=quant_config,
             **model_kwargs,
         )
 

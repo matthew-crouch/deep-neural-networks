@@ -1,7 +1,7 @@
 line-length = 100
 
 [lint]
-exclude = ["*.ipynb", "*__init__.py", "custom_model/*", "warhammer*", "data/*"]
+exclude = ["*.ipynb", "*__init__.py", "*checkpoint*", "warhammer*", "data/*"]
 select = [
     "D",
     # pycodestyle

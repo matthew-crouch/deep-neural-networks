@@ -28,13 +28,14 @@ import torch
 from peft import LoraConfig
 from transformers import BitsAndBytesConfig
 
+from data.label_mapping import LABEL_MAPPING
 from src.dataset.web_scrape import convert_to_dataset_dict
 from src.llms.fine_tuning_pipeline import FineTunerPipeline, TaskType
 from src.llms.pipelines.custom_trainer import calculate_class_weights, compute_metrics
-from data.label_mapping import LABEL_MAPPING
 
 
 def fetch_fail_dataset():
+    """Fetch fail dataset."""
     dataset = pd.read_csv("./data/data.csv")
     dataset = dataset[["fail_message", "fail_type"]]
     dataset = dataset.rename(columns={"fail_type": "label", "fail_message": "text"}).reset_index(
