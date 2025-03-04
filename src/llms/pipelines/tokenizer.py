@@ -50,10 +50,10 @@ class Tokenizer:
                 # max_length=128,
             )
 
-        # labels["input_ids"] = [
-        #     [(token if token != self.auto_tokenizer.pad_token_id else -100) for token in label]
-        #     for label in labels["input_ids"]
-        # ]
+        labels["input_ids"] = [
+            [(token if token != self.auto_tokenizer.pad_token_id else -100) for token in label]
+            for label in labels["input_ids"]
+        ]
         model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
