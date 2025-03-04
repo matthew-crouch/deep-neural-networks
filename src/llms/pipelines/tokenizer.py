@@ -39,23 +39,28 @@ class Tokenizer:
         model_inputs = self.auto_tokenizer(
             dataset[self.config.text_column],
             truncation=True,
-            padding="max_length",
-            max_length=5020,
+            padding=True,
+            # max_length=3,
         )
         with self.auto_tokenizer.as_target_tokenizer():
             labels = self.auto_tokenizer(
                 dataset[self.config.target_column],
                 truncation=True,
-                padding="max_length",
-                max_length=5020,
+                padding=True,
+                # max_length=128,
             )
 
-        labels["input_ids"] = [
-            [(token if token != self.auto_tokenizer.pad_token_id else -100) for token in label]
-            for label in labels["input_ids"]
-        ]
+        # labels["input_ids"] = [
+        #     [(token if token != self.auto_tokenizer.pad_token_id else -100) for token in label]
+        #     for label in labels["input_ids"]
+        # ]
         model_inputs["labels"] = labels["input_ids"]
         return model_inputs
+
+    def mulit_class_tokenizer(self, dataset):
+        return self.auto_tokenizer(
+            dataset["text"], padding="max_length", truncation=True, max_length=256
+        )
 
     def tokenize(self, dataset: DatasetDict, limit: bool = True) -> tuple[DatasetDict, DatasetDict]:
         """Tokenize the input data.
@@ -66,7 +71,8 @@ class Tokenizer:
         """
         logger.info("Tokenizing the dataset...")
 
-        tokenized_dataset = dataset.map(self.tokenizer_function, batched=True)
+        # tokenized_dataset = dataset.map(self.tokenizer_function, batched=True)
+        tokenized_dataset = dataset.map(self.mulit_class_tokenizer, batched=True)
 
         if limit:
             limited_train_dataset = (

@@ -1,7 +1,7 @@
 """Fine-tuning pipeline for transformers models."""
 
 import logging
-
+from typing import Any
 import torch
 from datasets import DatasetDict
 from peft import LoraConfig, get_peft_model
@@ -30,6 +30,11 @@ class FineTuningConfig(BaseModel):
     per_device_eval_batch_size: int = 2
     sample_size: int = 10
     save_model: bool = True
+    class_weights_tensor: torch.tensor = None
+    compute_metrics: Any = None
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class FineTunerPipeline:
@@ -40,6 +45,7 @@ class FineTunerPipeline:
     text generation, and summarisation tasks.
     """
 
+    # TODO: Tidy this function up and clean
     def __init__(
         self,
         mode: TaskType,
@@ -50,7 +56,15 @@ class FineTunerPipeline:
         self.mode = mode
         self.fine_tuning_config = FineTuningConfig(**fine_tuning_config)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        transformers = self._mode_options(mode)
+        self.model = self._initialise_model_setup()
+        model_size, num_parameters = self.get_model_size_bytes(self.model)
+
+        logger.info(f"Total Model Size in RAM: {round(model_size * 1e-9, 4)} GB")
+        logger.info(f"Number of Parameters: {round(num_parameters * 1e-9, 4)} B")
+
+    def _initialise_model_setup(self):
+        """"""
+        transformers = self._mode_options(self.mode)
         transformer_model, model_name, model_kwargs = (
             transformers.get("task"),
             transformers.get("models"),
@@ -58,27 +72,28 @@ class FineTunerPipeline:
         )
 
         if self.fine_tuning_config.quantisation.get(
-            "load_in_4bit"
+            "enabled"
         ) and not self.fine_tuning_config.lora.get("enabled"):
             raise ValueError(
-                "You must add Trainable Adapters since you"
+                "You must add Trainable Adapters since you "
                 "cannot perform fine-tuning on purely quantised models"
             )
 
+        if self.fine_tuning_config.class_weights_tensor is not None:
+            model_kwargs["num_labels"] = len(self.fine_tuning_config.class_weights_tensor)
+
+        # TODO Tidy this up, iots not working as expected
         model = transformer_model.from_pretrained(
             model_name,
             # torch_dtype="auto",
-            quantization_config=self.fine_tuning_config.quantisation.get("quantization_config"),
+            # quantization_config=self.fine_tuning_config.quantisation.get("quantization_config"),
             **model_kwargs,
         )
 
         if self.fine_tuning_config.lora.get("enabled"):
             model = get_peft_model(model, self.fine_tuning_config.lora.get("lora_config"))
 
-        self.model = model
-        model_size, num_parameters = self.get_model_size_bytes(self.model)
-        logger.info(f"Total Model Size in RAM: {round(model_size * 1e-9, 4)} GB")
-        logger.info(f"Number of Parameters: {round(num_parameters * 1e-9, 4)} B")
+        return model
 
     def get_model_size_bytes(self, model: torch.nn.Module) -> tuple:
         """Calculate the model size.
@@ -124,10 +139,14 @@ class FineTunerPipeline:
             model=self.model,
             args=trainer.get("trainer").get("trainer_kwargs"),
             ## Generalise this to support other tasks
-            train_dataset=train_data.remove_columns(["document", "summary", "id"]),
-            eval_dataset=eval_data.remove_columns(["document", "summary", "id"]),
+            train_dataset=train_data.remove_columns(["id"]),
+            eval_dataset=eval_data.remove_columns(["id"]),
+            compute_metrics=self.fine_tuning_config.compute_metrics,
+            class_weights=self.fine_tuning_config.class_weights_tensor.to(self.device),
         )
+
         logger.info("Starting Fine Tuning...")
+        logger.info(f"Training Args: {trainer.args}")
         trainer.train()
         logger.info("Fine Tuning Completed...")
 

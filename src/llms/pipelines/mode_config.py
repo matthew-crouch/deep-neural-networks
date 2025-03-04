@@ -5,12 +5,13 @@ from enum import Enum
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
+    AutoModelForSequenceClassification,
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
     Trainer,
     TrainingArguments,
-    AutoModelForSequenceClassification,
 )
+from src.llms.pipelines.custom_trainer import CustomTrainer
 
 
 class TaskType(Enum):
@@ -60,10 +61,11 @@ def config(**kwargs) -> dict:
         TaskType.SEQUENCE_CLASSIFICATION: {
             "task": AutoModelForSequenceClassification,
             "models": "meta-llama/Llama-3.2-1B",
+            # "models": "google-bert/bert-base-cased",
             "use_ddp": True,
-            "model_kwargs": {"num_labels": 4},
+            "model_kwargs": {},
             "trainer": {
-                "type": Trainer,
+                "type": CustomTrainer,
                 "trainer_kwargs": TrainingArguments(
                     ft_model_name,
                     evaluation_strategy="epoch",
@@ -75,7 +77,6 @@ def config(**kwargs) -> dict:
                     per_device_eval_batch_size=per_device_eval_batch_size,
                     fp16=(device.type == "cuda"),
                     remove_unused_columns=False,
-                    # deepspeed="/home/ubuntu/deep-neural-networks/zero_stage2_config.json",
                 ),
             },
         },
