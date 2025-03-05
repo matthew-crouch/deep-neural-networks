@@ -21,55 +21,48 @@ In th native config we use zero_stage 2 which will shard the gardients and optim
 but not the raw parameters.
 """
 
-import pandas as pd
 import torch
 
 # from datasets import load_dataset
 from peft import LoraConfig
 from transformers import BitsAndBytesConfig
 
-from data.label_mapping import LABEL_MAPPING
 from src.dataset.web_scrape import convert_to_dataset_dict
 from src.llms.fine_tuning_pipeline import FineTunerPipeline, TaskType
-from src.llms.pipelines.custom_trainer import calculate_class_weights, compute_metrics
-
-
-def fetch_fail_dataset():
-    """Fetch fail dataset."""
-    dataset = pd.read_csv("./data/data.csv")
-    dataset = dataset[["fail_message", "fail_type"]]
-    dataset = dataset.rename(columns={"fail_type": "label", "fail_message": "text"}).reset_index(
-        drop=True
-    )
-    dataset = dataset.dropna()
-    dataset = dataset[
-        (dataset["label"] != "nul")
-        & (dataset["label"] != "UNIMPL")
-        & (dataset["label"] != "Uncategorised")
-        & (dataset["label"] != "Test")
-    ]
-    dataset["label"] = dataset["label"].map(LABEL_MAPPING)
-    return dataset.sample(20000).reset_index(drop=True)
-
 
 if __name__ == "__main__":
-    dataset = fetch_fail_dataset()
-    dataset = convert_to_dataset_dict(dataset)
-
-    class_weights = calculate_class_weights(dataset["train"].to_pandas())
-    class_weights_tensor = torch.tensor(class_weights, dtype=torch.float16)
+    # dataset = load_dataset("xsum", trust_remote_code=True)
+    warhammer_sources = [
+        "https://warhammer40k.fandom.com/wiki/Chaos",
+        "https://warhammer40k.fandom.com/wiki/Space_Marines",
+        "https://warhammer40k.fandom.com/wiki/Tau",
+        "https://warhammer40k.fandom.com/wiki/Eldar",
+        "https://warhammer40k.fandom.com/wiki/Necrons",
+        "https://warhammer40k.fandom.com/wiki/Orks",
+        "https://warhammer40k.fandom.com/wiki/Tyranids",
+        "https://warhammer40k.fandom.com/wiki/Imperium_of_Man",
+        "https://warhammer40k.fandom.com/wiki/Adeptus_Astartes",
+        "https://warhammer40k.fandom.com/wiki/Imperial_Guard",
+        "https://warhammer40k.fandom.com/wiki/Imperial_Navy",
+        "https://warhammer40k.fandom.com/wiki/Inquisition",
+        "https://warhammer40k.fandom.com/wiki/Adeptus_Mechanicus",
+        "https://warhammer40k.fandom.com/wiki/Astra_Telepathica",
+        "https://warhammer40k.fandom.com/wiki/Adeptus_Arbites",
+        "https://warhammer40k.fandom.com/wiki/Adepta_Sororitas",
+        "https://warhammer40k.fandom.com/wiki/Horus_Heresy",
+        "https://warhammer40k.fandom.com/wiki/Great_Crusade",
+    ]
+    dataset, _ = convert_to_dataset_dict(sources=warhammer_sources)
 
     ft_pipeline = FineTunerPipeline(
-        mode=TaskType.SEQUENCE_CLASSIFICATION,
+        mode=TaskType.TEXT_GENERATION,
         fine_tuning_config={
-            "ft_model_name": "llama-1b-fail-message",
-            "text_column": "label",
-            "target_column": "text",
+            "ft_model_name": "warhammer_model",
+            "text_column": "document",
+            "target_column": "summary",
             "per_device_train_batch_size": 1,
             "per_device_eval_batch_size": 1,
-            "class_weights_tensor": class_weights_tensor,
-            "compute_metrics": compute_metrics,
-            "sample_size": 1000,
+            # "sample_size": len(dataset["train"]),
             "quantisation": {
                 "enabled": True,
                 "load_in_4bit": True,

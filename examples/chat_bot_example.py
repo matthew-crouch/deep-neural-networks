@@ -4,7 +4,7 @@ from langchain_huggingface.llms import HuggingFacePipeline
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 if __name__ == "__main__":
-    model_name = "warhammer_model"
+    model_name = "llama-1b-fail-message"
     tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
     model = AutoModelForCausalLM.from_pretrained(model_name)
 
