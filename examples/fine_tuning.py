@@ -62,7 +62,7 @@ if __name__ == "__main__":
     ft_pipeline = FineTunerPipeline(
         mode=TaskType.SEQUENCE_CLASSIFICATION,
         fine_tuning_config={
-            "ft_model_name": "llama-1b-fail-message",
+            "ft_model_name": "llama-1b-fail-message-v2",
             "text_column": "label",
             "target_column": "text",
             "per_device_train_batch_size": 1,

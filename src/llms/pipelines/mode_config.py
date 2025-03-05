@@ -78,6 +78,8 @@ def config(**kwargs) -> dict:
                     per_device_eval_batch_size=per_device_eval_batch_size,
                     fp16=(device.type == "cuda"),
                     remove_unused_columns=False,
+                    report_to="tensorboard",
+                    logging_dir="./logs",
                 ),
             },
         },
