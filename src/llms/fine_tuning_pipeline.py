@@ -156,8 +156,8 @@ class FineTunerPipeline:
         if self.fine_tuning_config.save_model:
             self.model.save_pretrained(self.fine_tuning_config.ft_model_name)
             logger.info(f"Model saved to {self.fine_tuning_config.ft_model_name}")
-            self.model.save_pretrained_merged(
-                self.fine_tuning_config.ft_model_name + "_merged", tokenizer.auto_tokenizer
-            )
+
+            trainer.save_model(self.fine_tuning_config.ft_model_name)
+            logger.info(f"Trainer saved to {self.fine_tuning_config.ft_model_name}")
 
         return trainer
