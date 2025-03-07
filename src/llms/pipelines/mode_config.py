@@ -4,10 +4,7 @@ from enum import Enum
 
 from transformers import (
     AutoModelForCausalLM,
-    AutoModelForSeq2SeqLM,
     AutoModelForSequenceClassification,
-    Seq2SeqTrainer,
-    Seq2SeqTrainingArguments,
     Trainer,
     TrainingArguments,
 )

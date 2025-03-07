@@ -10,7 +10,6 @@ from pydantic import BaseModel
 
 from src.llms.pipelines.mode_config import TaskType, config
 from src.llms.pipelines.tokenizer import Tokenizer
-from transformers import DataCollatorForSeq2Seq
 
 logging.basicConfig(
     level=logging.DEBUG,

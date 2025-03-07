@@ -1,8 +1,8 @@
 """Example of inference for a chat bot style model."""
 
+import torch
 from langchain_huggingface.llms import HuggingFacePipeline
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-import torch
 
 if __name__ == "__main__":
     model_name = "meta-llama/Llama-3.2-1B"

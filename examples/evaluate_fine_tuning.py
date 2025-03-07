@@ -8,6 +8,7 @@ from transformers import (
     AutoTokenizer,
     pipeline,
 )
+
 from data.label_mapping import REVERSE_LABEL_MAPPING
 
 if __name__ == "__main__":

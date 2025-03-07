@@ -2,11 +2,11 @@
 
 import logging
 
+import torch
 from datasets import DatasetDict
 from transformers import (
     AutoTokenizer,
 )
-import torch
 
 logging.basicConfig(
     level=logging.DEBUG,
