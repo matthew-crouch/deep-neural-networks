@@ -5,6 +5,7 @@ from enum import Enum
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForSequenceClassification,
+    AutoModelForSeq2SeqLM,
     Trainer,
     TrainingArguments,
 )
@@ -58,7 +59,6 @@ def config(**kwargs) -> dict:
         TaskType.SEQUENCE_CLASSIFICATION: {
             "task": AutoModelForSequenceClassification,
             "models": "meta-llama/Llama-3.2-1B",
-            # "models": "google-bert/bert-base-cased",
             "use_ddp": True,
             "model_kwargs": {},
             "trainer": {
@@ -79,26 +79,5 @@ def config(**kwargs) -> dict:
                 ),
             },
         },
-        # TaskType.TEXT_SUMMARISATION: {
-        #     "task": AutoModelForSeq2SeqLM,
-        #     "models": "google/pegasus-xsum",
-        #     "model_kwargs": {},
-        #     "data_collector": None,
-        #     "use_ddp": True,
-        #     "trainer": {
-        #         "type": Seq2SeqTrainer,
-        #         "trainer_kwargs": Seq2SeqTrainingArguments(
-        #             ft_model_name,
-        #             evaluation_strategy="epoch",
-        #             learning_rate=1e-5,
-        #             weight_decay=0.01,
-        #             num_train_epochs=3,
-        #             per_device_train_batch_size=per_device_train_batch_size,
-        #             per_device_eval_batch_size=per_device_eval_batch_size,
-        #             fp16=(device.type == "cuda"),
-        #             remove_unused_columns=False,
-        #         ),
-        #     },
-        # },
     }
     return mode_options

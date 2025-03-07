@@ -7,6 +7,7 @@ import torch
 from datasets import DatasetDict
 from peft import LoraConfig, get_peft_model
 from pydantic import BaseModel
+from transformers import DataCollatorForSeq2Seq
 
 from src.llms.pipelines.mode_config import TaskType, config
 from src.llms.pipelines.tokenizer import Tokenizer
@@ -145,18 +146,20 @@ class FineTunerPipeline:
         trainer = self._mode_options(mode=self.mode)
 
         tokenizer = Tokenizer(trainer["models"], config=self.fine_tuning_config)
-        train_data, eval_data = tokenizer.tokenize(dataset=dataset, limit=False)
+        train_data, eval_data = tokenizer.tokenize(dataset=dataset, limit=True)
 
         auto_model = trainer.get("trainer").get("type")
-        # data_collator = DataCollatorForSeq2Seq(
-        #     tokenizer.auto_tokenizer, model=self.model, padding=True
-        # )
+
+        data_collator = DataCollatorForSeq2Seq(
+            tokenizer.auto_tokenizer, model=self.model, padding=True
+        )
+
         trainer = auto_model(
             model=self.model,
             args=trainer.get("trainer").get("trainer_kwargs"),
             train_dataset=train_data.remove_columns(["id"]),
             eval_dataset=eval_data.remove_columns(["id"]),
-            # data_collator=data_collator,
+            data_collator=data_collator,
             **self.custom_kwargs,
         )
 
