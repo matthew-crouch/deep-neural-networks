@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from src.llms.pipelines.mode_config import TaskType, config
 from src.llms.pipelines.tokenizer import Tokenizer
+from transformers import DataCollatorForSeq2Seq
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -60,6 +61,15 @@ class FineTunerPipeline:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = self._initialise_model_setup()
         model_size, num_parameters = self.get_model_size_bytes(self.model)
+
+        self.custom_kwargs = {}
+        if self.fine_tuning_config.class_weights_tensor is not None:
+            self.custom_kwargs["class_weights"] = self.fine_tuning_config.class_weights_tensor.to(
+                self.device
+            )
+
+        if self.fine_tuning_config.compute_metrics is not None:
+            self.custom_kwargs["compute_metrics"] = self.fine_tuning_config.compute_metrics
 
         logger.info(f"Total Model Size in RAM: {round(model_size * 1e-9, 4)} GB")
         logger.info(f"Number of Parameters: {round(num_parameters * 1e-9, 4)} B")
@@ -139,13 +149,16 @@ class FineTunerPipeline:
         train_data, eval_data = tokenizer.tokenize(dataset=dataset, limit=False)
 
         auto_model = trainer.get("trainer").get("type")
+        # data_collator = DataCollatorForSeq2Seq(
+        #     tokenizer.auto_tokenizer, model=self.model, padding=True
+        # )
         trainer = auto_model(
             model=self.model,
             args=trainer.get("trainer").get("trainer_kwargs"),
             train_dataset=train_data.remove_columns(["id"]),
             eval_dataset=eval_data.remove_columns(["id"]),
-            compute_metrics=self.fine_tuning_config.compute_metrics,
-            class_weights=self.fine_tuning_config.class_weights_tensor.to(self.device),
+            # data_collator=data_collator,
+            **self.custom_kwargs,
         )
 
         logger.info("Starting Fine Tuning...")

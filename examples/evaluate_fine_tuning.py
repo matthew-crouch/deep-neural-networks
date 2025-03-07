@@ -1,15 +1,14 @@
 """Example of inference for a chat bot style model."""
 
-from langchain_huggingface.llms import HuggingFacePipeline
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    pipeline,
-    AutoModelForSequenceClassification,
-)
 import pandas as pd
 import torch
 from peft import PeftModel
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    pipeline,
+)
+from data.label_mapping import REVERSE_LABEL_MAPPING
 
 if __name__ == "__main__":
     base_model_name = "meta-llama/Llama-3.2-1B"
@@ -22,7 +21,11 @@ if __name__ == "__main__":
 
     model = PeftModel.from_pretrained(base_model, lora_model)
 
-    data = pd.read_csv("./data/test_data_fails.csv")[["fail_message", "fail_type"]]
+    data = (
+        pd.read_csv("./data/test_data_fails.csv")[["fail_message", "fail_type"]]
+        .sample(1000)
+        .reset_index(drop=True)
+    )
 
     classification_pipeline = pipeline(
         "sentiment-analysis",
@@ -32,4 +35,7 @@ if __name__ == "__main__":
     )
     predictions = classification_pipeline(data["fail_message"].tolist())
     predictions = pd.DataFrame(predictions)
+    predictions["label"] = predictions["label"].map(REVERSE_LABEL_MAPPING)
+
+    data = pd.concat([data, predictions], axis=1)
     breakpoint()

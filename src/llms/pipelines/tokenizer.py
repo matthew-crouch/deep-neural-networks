@@ -6,6 +6,7 @@ from datasets import DatasetDict
 from transformers import (
     AutoTokenizer,
 )
+import torch
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -36,25 +37,31 @@ class Tokenizer:
         :param dataset: DatasetDict: The dataset to tokenize.
         :return: model_inputs: The tokenized dataset.
         """
+        inputs = [f"Summarize: {doc}" for doc in dataset[self.config.text_column]]
+        targets = dataset[self.config.target_column]
+
         model_inputs = self.auto_tokenizer(
-            dataset[self.config.text_column],
+            inputs,
             truncation=True,
             padding=True,
-            # max_length=3,
+            # max_length=256,
         )
         with self.auto_tokenizer.as_target_tokenizer():
             labels = self.auto_tokenizer(
-                dataset[self.config.target_column],
+                targets,
                 truncation=True,
                 padding=True,
-                # max_length=128,
+                # max_length=256,
             )
-
         labels["input_ids"] = [
             [(token if token != self.auto_tokenizer.pad_token_id else -100) for token in label]
             for label in labels["input_ids"]
         ]
-        model_inputs["labels"] = labels["input_ids"]
+        model_inputs["label"] = [
+            torch.tensor(label, dtype=torch.int64) for label in labels["input_ids"]
+        ]
+        logging.info(f"Input IDs: {model_inputs['input_ids'].shape}")
+        logging.info(f"Label: {model_inputs['label'].shape}")
         return model_inputs
 
     def mulit_class_tokenizer(self, dataset):
@@ -72,6 +79,7 @@ class Tokenizer:
         """
         logger.info("Tokenizing the dataset...")
 
+        ## TODO: Add custom tokenizer logic here
         # tokenized_dataset = dataset.map(self.tokenizer_function, batched=True)
         tokenized_dataset = dataset.map(self.mulit_class_tokenizer, batched=True)
 
