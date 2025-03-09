@@ -2,6 +2,7 @@
 
 import logging
 
+import torch
 from datasets import DatasetDict
 from transformers import (
     AutoTokenizer,
@@ -36,26 +37,66 @@ class Tokenizer:
         :param dataset: DatasetDict: The dataset to tokenize.
         :return: model_inputs: The tokenized dataset.
         """
+        # Prompt engineer for summarization since llmama is decoder only
+        inputs = [f"Summarize: {doc}" for doc in dataset[self.config.text_column]]
+        targets = dataset[self.config.target_column]
+
         model_inputs = self.auto_tokenizer(
-            dataset[self.config.text_column],
+            inputs,
             truncation=True,
-            padding=True,
-            # max_length=3,
+            padding="max_length",
+            max_length=1024,
         )
         with self.auto_tokenizer.as_target_tokenizer():
             labels = self.auto_tokenizer(
-                dataset[self.config.target_column],
+                targets,
                 truncation=True,
-                padding=True,
-                # max_length=128,
+                padding="max_length",
+                max_length=128,
             )
 
-        labels["input_ids"] = [
-            [(token if token != self.auto_tokenizer.pad_token_id else -100) for token in label]
-            for label in labels["input_ids"]
-        ]
         model_inputs["labels"] = labels["input_ids"]
+
         return model_inputs
+
+    def decoder_only_preprocessing(self, examples):
+        """Preprocess the data for decoder only models."""
+        input_ids_list = []
+        labels_list = []
+        max_input_length = 1024  # total sequence length
+        for article, summary in zip(examples["article"], examples["highlights"]):
+            # Since LLama is decoder only, we need to add a prompt to the input
+            prompt = f"Summarize: {article}"
+
+            full_text = prompt + "\n" + summary + self.auto_tokenizer.eos_token
+
+            # Tokenize the full text sequence
+            tokenized = self.auto_tokenizer(
+                full_text,
+                truncation=True,
+                max_length=max_input_length,
+                padding="max_length",
+            )
+            input_ids = tokenized["input_ids"]
+
+            prompt_tokenized = self.auto_tokenizer(
+                prompt + "\n",
+                truncation=True,
+                max_length=max_input_length,
+            )
+            prompt_length = len(prompt_tokenized["input_ids"])
+
+            # Create labels: mask prompt tokens with -100 and keep summary tokens
+            labels = [-100] * prompt_length + input_ids[prompt_length:]
+
+            labels = labels[:max_input_length]
+            if len(labels) < max_input_length:
+                labels = labels + [-100] * (max_input_length - len(labels))
+
+            input_ids_list.append(input_ids)
+            labels_list.append(labels)
+            
+        return {"input_ids": input_ids_list, "labels": labels_list}
 
     def mulit_class_tokenizer(self, dataset):
         """Add multi-class tokenizer."""
@@ -72,8 +113,9 @@ class Tokenizer:
         """
         logger.info("Tokenizing the dataset...")
 
-        # tokenized_dataset = dataset.map(self.tokenizer_function, batched=True)
-        tokenized_dataset = dataset.map(self.mulit_class_tokenizer, batched=True)
+        ## TODO: Add custom tokenizer logic here
+        tokenized_dataset = dataset.map(self.decoder_only_preprocessing, batched=True)
+        # tokenized_dataset = dataset.map(self.mulit_class_tokenizer, batched=True)
 
         if limit:
             limited_train_dataset = (
