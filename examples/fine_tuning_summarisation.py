@@ -39,24 +39,23 @@ def fetch_fail_dataset():
     dataset = dataset.rename(columns={"fail_message": "label", "comment": "text"}).reset_index(
         drop=True
     )
-    dataset = dataset.drop_duplicates(subset=["fail_signature"])
+    # dataset = dataset.drop_duplicates(subset=["fail_signature"])
     dataset = dataset.dropna(subset=["label"])
     dataset = dataset.fillna("No Comment")
     return dataset.reset_index(drop=True)
 
 
 if __name__ == "__main__":
-    dataset = fetch_fail_dataset()
-    dataset = convert_to_dataset_dict(dataset)
-    # dataset = load_dataset("cnn_dailymail", "3.0.0")
-
+    # dataset = fetch_fail_dataset()
+    # dataset = convert_to_dataset_dict(dataset)
+    dataset = load_dataset("cnn_dailymail", "3.0.0")
 
     ft_pipeline = FineTunerPipeline(
         mode=TaskType.TEXT_SUMMARISATION,
         fine_tuning_config={
             "ft_model_name": "llama-1b-fail-message-generation",
-            "text_column": "highlights",
-            "target_column": "article",
+            "text_column": "article",
+            "target_column": "highlights",
             "per_device_train_batch_size": 4,
             "per_device_eval_batch_size": 4,
             "sample_size": 1000,

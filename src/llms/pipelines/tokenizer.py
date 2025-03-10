@@ -63,10 +63,12 @@ class Tokenizer:
         """Preprocess the data for decoder only models."""
         input_ids_list = []
         labels_list = []
-        max_input_length = 1024  # total sequence length
-        for article, summary in zip(examples["article"], examples["highlights"]):
+        max_input_length = 100  # total sequence length
+        for article, summary in zip(
+            examples[self.config.text_column], examples[self.config.target_column]
+        ):
             # Since LLama is decoder only, we need to add a prompt to the input
-            prompt = f"Summarize: {article}"
+            prompt = f"Summarize: {self.config.text_column}\n"
 
             full_text = prompt + "\n" + summary + self.auto_tokenizer.eos_token
 
@@ -95,7 +97,7 @@ class Tokenizer:
 
             input_ids_list.append(input_ids)
             labels_list.append(labels)
-            
+
         return {"input_ids": input_ids_list, "labels": labels_list}
 
     def mulit_class_tokenizer(self, dataset):
