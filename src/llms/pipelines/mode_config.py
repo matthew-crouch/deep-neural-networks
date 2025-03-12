@@ -5,7 +5,6 @@ from enum import Enum
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForSequenceClassification,
-    AutoModelForSeq2SeqLM,
     Trainer,
     TrainingArguments,
 )
@@ -58,7 +57,8 @@ def config(**kwargs) -> dict:
         },
         TaskType.SEQUENCE_CLASSIFICATION: {
             "task": AutoModelForSequenceClassification,
-            "models": "meta-llama/Llama-3.2-1B",
+            # "models": "meta-llama/Llama-3.2-1B",
+            "models": "bert-base-uncased",
             "use_ddp": True,
             "model_kwargs": {},
             "trainer": {

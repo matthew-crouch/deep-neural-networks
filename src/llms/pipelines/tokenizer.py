@@ -2,7 +2,6 @@
 
 import logging
 
-import torch
 from datasets import DatasetDict
 from transformers import (
     AutoTokenizer,
@@ -63,8 +62,10 @@ class Tokenizer:
         """Preprocess the data for decoder only models."""
         input_ids_list = []
         labels_list = []
-        max_input_length = 1024  # total sequence length
-        for article, summary in zip(examples["article"], examples["highlights"]):
+        max_input_length = 1500  # total sequence length
+        for article, summary in zip(
+            examples[self.config.text_column], examples[self.config.target_column]
+        ):
             # Since LLama is decoder only, we need to add a prompt to the input
             prompt = f"Summarize: {article}"
 
@@ -95,13 +96,13 @@ class Tokenizer:
 
             input_ids_list.append(input_ids)
             labels_list.append(labels)
-            
+
         return {"input_ids": input_ids_list, "labels": labels_list}
 
     def mulit_class_tokenizer(self, dataset):
         """Add multi-class tokenizer."""
         return self.auto_tokenizer(
-            dataset["text"], padding="max_length", truncation=True, max_length=256
+            dataset[self.config.text_column], padding="max_length", truncation=True, max_length=512
         )
 
     def tokenize(self, dataset: DatasetDict, limit: bool = True) -> tuple[DatasetDict, DatasetDict]:
@@ -112,11 +113,11 @@ class Tokenizer:
         :return: tokenized_dataset: The tokenized dataset.
         """
         logger.info("Tokenizing the dataset...")
-
         ## TODO: Add custom tokenizer logic here
-        tokenized_dataset = dataset.map(self.decoder_only_preprocessing, batched=True)
-        # tokenized_dataset = dataset.map(self.mulit_class_tokenizer, batched=True)
+        # tokenized_dataset = dataset.map(self.decoder_only_preprocessing, batched=True)
 
+        tokenized_dataset = dataset.map(self.mulit_class_tokenizer, batched=True)
+        breakpoint()
         if limit:
             limited_train_dataset = (
                 tokenized_dataset["train"].shuffle(seed=42).select(range(self.config.sample_size))

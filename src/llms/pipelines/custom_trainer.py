@@ -19,7 +19,7 @@ def compute_metrics(pred):
     return {"accuracy": acc, "f1": f1, "precision": precision, "recall": recall}
 
 
-def calculate_class_weights(dataset):
+def calculate_class_weights(dataset: pd.DataFrame):
     """Calculate the class weights for the fail types."""
     class_counts = pd.DataFrame(dataset["label"]).value_counts()
     total_counts = dataset.shape[0]
