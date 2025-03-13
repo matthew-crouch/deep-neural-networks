@@ -1,13 +1,12 @@
 """LSTM model for anomaly detection."""
 
 import logging
-import os
 
 import torch
+import torch.distributed as dist
 import torch.onnx
 from pydantic import BaseModel
 from torch import nn
-import torch.distributed as dist
 
 from src.anomaly_detection.model_io import ModelIo
 
@@ -18,40 +17,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-
-class LSTMClassifier(nn.Module):
-    """LSTM model for anomaly detection."""
-
-    def __init__(
-        self,
-        input_size: int,
-        hidden_size: int,
-        num_layers: int,
-        output_size: int,
-        dropout: float = 0.25,
-    ):
-        """Initialize the LSTM model."""
-        super().__init__()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-        self.linear_1 = nn.Linear(hidden_size, output_size)
-
-        self.num_parameters = sum(p.numel() for p in self.parameters())
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward Pass Function."""
-        h_init = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device)
-        c_init = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device)
-
-        # forward pass through LSTM layer, output shape: (batch_size, seq_length, hidden_size)
-        output, _ = self.lstm(x.to(self.device), (h_init, c_init))
-        output = self.linear_1(output[:, -1, :])
-
-        return output
 
 
 class EarlyStopping:
@@ -91,21 +56,16 @@ class TrainingConfig(BaseModel):
     world_size: int = 0
     quantise: dict = {"enabled": False, "num_bits": 8}
 
+
 class TrainingPipeline:
     """Training pipeline for the Anomaly Detection model."""
 
-    def __init__(self, configuration: dict):
+    def __init__(self, model, configuration: dict):
         """Initialize the training pipeline."""
         self.configuration = TrainingConfig(**configuration)
 
         self.early_stopping = EarlyStopping()
-        self.model = LSTMClassifier(
-            self.configuration.input_size,
-            self.configuration.hidden_size,
-            self.configuration.num_layers,
-            self.configuration.output_size,
-            self.configuration.dropout,
-        )
+        self.model = model
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(
             self.model.parameters(), lr=self.configuration.learning_rate
@@ -129,16 +89,17 @@ class TrainingPipeline:
         model_size, num_parameters = self.get_model_size_bytes(self.model)
         logger.info(f"Total Model Size in RAM after Quantisation: {round(model_size * 1e-9, 4)} GB")
 
-
         self.model.to(self.device)
 
         self.model_io = ModelIo(self.model)
 
     @staticmethod
-    def setup_distributed_training(rank, world_size):
+    def setup_distributed_training(rank: int, world_size: int):
+        """Create process group."""
         dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
     def cleanup(self):
+        """Cleanup the distributed training."""
         dist.destroy_process_group()
 
     @staticmethod
@@ -155,7 +116,6 @@ class TrainingPipeline:
         buffer_size = 0
         for buf in model.buffers():
             buffer_size += buf.numel() * buf.element_size()
-            
 
         return (param_size + buffer_size, model.num_parameters)
 
