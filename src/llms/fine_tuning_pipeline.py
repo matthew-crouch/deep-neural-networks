@@ -11,6 +11,7 @@ from transformers import DataCollatorWithPadding
 
 from src.llms.pipelines.mode_config import TaskType, config
 from src.llms.pipelines.tokenizer import Tokenizer
+from warnings import warn
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -55,6 +56,9 @@ class FineTunerPipeline:
         fine_tuning_config: dict,
     ):
         """Initialize the fine-tuning pipeline."""
+        warn(
+            "This class is deprecated and will be removed in the next release.", DeprecationWarning
+        )
         self.dataset = None
         self.mode = mode
         self.fine_tuning_config = FineTuningConfig(**fine_tuning_config)
