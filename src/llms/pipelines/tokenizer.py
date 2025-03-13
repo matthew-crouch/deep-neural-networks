@@ -117,7 +117,6 @@ class Tokenizer:
         # tokenized_dataset = dataset.map(self.decoder_only_preprocessing, batched=True)
 
         tokenized_dataset = dataset.map(self.mulit_class_tokenizer, batched=True)
-        breakpoint()
         if limit:
             limited_train_dataset = (
                 tokenized_dataset["train"].shuffle(seed=42).select(range(self.config.sample_size))
