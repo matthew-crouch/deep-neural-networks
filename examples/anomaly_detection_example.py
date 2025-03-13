@@ -1,17 +1,16 @@
 """Example of anomaly detection using LSTM Autoencoder."""
 
-from src.create_dataset import generate_anomaly_dataset  # ,  preprocess_api_dataset,
-from src.training_pipeline import TrainingPipeline
+import torch
+
+from src.anomaly_detection.create_dataset import (
+    generate_anomaly_dataset,
+)  # ,  preprocess_api_dataset,
+from src.anomaly_detection.training_pipeline import TrainingPipeline
+from src.llms.model_zoo.lstm import LSTMClassifier
 
 if __name__ == "__main__":
     x, y = generate_anomaly_dataset(n_samples=10000, n_features=10, random_state=42)
     xval, yval = generate_anomaly_dataset(n_samples=10000, n_features=10, random_state=420)
-
-    # if False:
-    # x, y, xval, yval = preprocess_api_dataset(
-    #     dataset_name="examples/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
-    #     target_name=" Label",
-    # )
 
     config = {
         "input_size": x.shape[2],
@@ -24,7 +23,18 @@ if __name__ == "__main__":
         "batch_size": x.shape[0],
         "num_epochs": 100000,
         "early_stopping": True,
+        "rank": 1,
+        "world_size": torch.cuda.device_count(),
+        "quantise": {"enabled": False, "num_bits": 8},
     }
 
-    training_pipeline = TrainingPipeline(configuration=config)
+    model = LSTMClassifier(
+        config["input_size"],
+        config["hidden_size"],
+        config["num_layers"],
+        config["output_size"],
+        config["dropout"],
+    )
+
+    training_pipeline = TrainingPipeline(model=model, configuration=config)
     training_pipeline.run(train_data=(x, y), val_data=(xval, yval))

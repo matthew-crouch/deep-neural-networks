@@ -23,43 +23,27 @@ but not the raw parameters.
 
 import pandas as pd
 import torch
-
-from datasets import load_dataset
 from peft import LoraConfig
 from transformers import BitsAndBytesConfig
 
 from src.dataset.web_scrape import convert_to_dataset_dict
 from src.llms.fine_tuning_pipeline import FineTunerPipeline, TaskType
 
-
-def fetch_fail_dataset():
-    """Fetch fail dataset."""
-    dataset = pd.read_csv("./data/nevis_fail_message_summarisation.csv")
-    dataset = dataset[["fail_message", "comment", "fail_signature"]]
-    dataset = dataset.rename(columns={"fail_message": "label", "comment": "text"}).reset_index(
-        drop=True
-    )
-    dataset = dataset.drop_duplicates(subset=["fail_signature"])
-    dataset = dataset.dropna(subset=["label"])
-    dataset = dataset.fillna("No Comment")
-    return dataset.reset_index(drop=True)
-
-
 if __name__ == "__main__":
-    dataset = fetch_fail_dataset()
+    dataset = pd.read_csv("./data/jira_data_cleaned.csv")
+    dataset = dataset.drop(columns=["resolved"])
     dataset = convert_to_dataset_dict(dataset)
     # dataset = load_dataset("cnn_dailymail", "3.0.0")
-
 
     ft_pipeline = FineTunerPipeline(
         mode=TaskType.TEXT_SUMMARISATION,
         fine_tuning_config={
             "ft_model_name": "llama-1b-fail-message-generation",
-            "text_column": "highlights",
-            "target_column": "article",
+            "text_column": "content",
+            "target_column": "summary",
             "per_device_train_batch_size": 4,
             "per_device_eval_batch_size": 4,
-            "sample_size": 1000,
+            # "sample_size": 1000,
             "quantisation": {
                 "enabled": True,
                 "load_in_4bit": True,

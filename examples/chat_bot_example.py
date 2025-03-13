@@ -1,8 +1,8 @@
 """Example of inference for a chat bot style model."""
 
 import torch
-from peft import PeftModel
 from langchain_huggingface.llms import HuggingFacePipeline
+from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 if __name__ == "__main__":
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     model = PeftModel.from_pretrained(base_model, lora_model)
 
     chat_pipeline = pipeline(
-        "text-generation",
+        "summarization",
         model=model,
         tokenizer=tokenizer,
         max_new_tokens=100,

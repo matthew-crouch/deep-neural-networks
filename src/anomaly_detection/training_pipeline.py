@@ -3,6 +3,7 @@
 import logging
 
 import torch
+import torch.distributed as dist
 import torch.onnx
 from pydantic import BaseModel
 from torch import nn
@@ -16,37 +17,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-
-class LSTMClassifier(nn.Module):
-    """LSTM model for anomaly detection."""
-
-    def __init__(
-        self,
-        input_size: int,
-        hidden_size: int,
-        num_layers: int,
-        output_size: int,
-        dropout: float = 0.25,
-    ):
-        """Initialize the LSTM model."""
-        super().__init__()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-        self.fully_connected = nn.Linear(hidden_size, output_size)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward Pass Function."""
-        h_init = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device)
-        c_init = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device)
-
-        # forward pass through LSTM layer, output shape: (batch_size, seq_length, hidden_size)
-        output, _ = self.lstm(x.to(self.device), (h_init, c_init))
-
-        return self.fully_connected(output[:, -1, :])
 
 
 class EarlyStopping:
@@ -82,31 +52,72 @@ class TrainingConfig(BaseModel):
     batch_size: int
     num_epochs: int
     early_stopping: bool = False
+    rank: int = 0
+    world_size: int = 0
+    quantise: dict = {"enabled": False, "num_bits": 8}
 
 
 class TrainingPipeline:
     """Training pipeline for the Anomaly Detection model."""
 
-    def __init__(self, configuration: dict):
+    def __init__(self, model, configuration: dict):
         """Initialize the training pipeline."""
         self.configuration = TrainingConfig(**configuration)
 
         self.early_stopping = EarlyStopping()
-        self.model = LSTMClassifier(
-            self.configuration.input_size,
-            self.configuration.hidden_size,
-            self.configuration.num_layers,
-            self.configuration.output_size,
-            self.configuration.dropout,
-        )
+        self.model = model
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(
             self.model.parameters(), lr=self.configuration.learning_rate
         )
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if self.configuration.rank > 1:
+            self.setup_distributed_training(
+                rank=self.configuration.rank, world_size=self.configuration.world_size
+            )
+        else:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        model_size, num_parameters = self.get_model_size_bytes(self.model)
+        logger.info(f"Total Model Size in RAM: {round(model_size * 1e-9, 4)} GB")
+        logger.info(f"Number of Parameters: {round(num_parameters * 1e-9, 4)} B")
+
+        if self.configuration.quantise.get("enabled"):
+            self.model = torch.ao.quantization.quantize_dynamic(
+                self.model, {torch.nn.Linear}, dtype=torch.qint8
+            )
+
+        model_size, num_parameters = self.get_model_size_bytes(self.model)
+        logger.info(f"Total Model Size in RAM after Quantisation: {round(model_size * 1e-9, 4)} GB")
+
         self.model.to(self.device)
 
         self.model_io = ModelIo(self.model)
+
+    @staticmethod
+    def setup_distributed_training(rank: int, world_size: int):
+        """Create process group."""
+        dist.init_process_group("nccl", rank=rank, world_size=world_size)
+
+    def cleanup(self):
+        """Cleanup the distributed training."""
+        dist.destroy_process_group()
+
+    @staticmethod
+    def get_model_size_bytes(model: torch.nn.Module) -> tuple:
+        """Calculate the model size.
+
+        Calculate total number of bytes occupied by model's params + buffers
+        and return the number of parameters in the model.
+        """
+        param_size = 0
+        for param in model.parameters():
+            param_size += param.numel() * param.element_size()
+
+        buffer_size = 0
+        for buf in model.buffers():
+            buffer_size += buf.numel() * buf.element_size()
+
+        return (param_size + buffer_size, model.num_parameters)
 
     def make_dataloader(self, data: tuple[torch.Tensor, torch.Tensor]):
         """Create a DataLoader from the input data.
@@ -154,7 +165,11 @@ class TrainingPipeline:
         return val_loss
 
     def train(
-        self, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader
+        self,
+        train_loader: torch.utils.data.DataLoader,
+        val_loader: torch.utils.data.DataLoader,
+        rank=1,
+        world_size=1,
     ):
         """Train the model.
 
@@ -199,5 +214,4 @@ class TrainingPipeline:
         train_loader = self.make_dataloader(train_data)
         val_loader = self.make_dataloader(val_data)
         self.train(train_loader, val_loader)
-
         self.model_io.save("anomaly_detection.pth")

@@ -7,7 +7,7 @@ import torch
 from datasets import DatasetDict
 from peft import LoraConfig, get_peft_model
 from pydantic import BaseModel
-from transformers import DataCollatorForSeq2Seq
+from transformers import DataCollatorWithPadding
 
 from src.llms.pipelines.mode_config import TaskType, config
 from src.llms.pipelines.tokenizer import Tokenizer
@@ -109,7 +109,8 @@ class FineTunerPipeline:
 
         return model
 
-    def get_model_size_bytes(self, model: torch.nn.Module) -> tuple:
+    @staticmethod
+    def get_model_size_bytes(model: torch.nn.Module) -> tuple:
         """Calculate the model size.
 
         Calculate total number of bytes occupied by model's params + buffers
@@ -123,7 +124,7 @@ class FineTunerPipeline:
         for buf in model.buffers():
             buffer_size += buf.numel() * buf.element_size()
 
-        return (param_size + buffer_size, self.model.num_parameters())
+        return (param_size + buffer_size, model.num_parameters())
 
     def _mode_options(self, mode: TaskType) -> dict:
         """Model options for the pipeline.
@@ -146,19 +147,21 @@ class FineTunerPipeline:
         trainer = self._mode_options(mode=self.mode)
 
         tokenizer = Tokenizer(trainer["models"], config=self.fine_tuning_config)
-        train_data, eval_data = tokenizer.tokenize(dataset=dataset, limit=True)
+        train_data, eval_data = tokenizer.tokenize(dataset=dataset, limit=False)
 
         auto_model = trainer.get("trainer").get("type")
 
-        data_collator = DataCollatorForSeq2Seq(
-            tokenizer.auto_tokenizer, model=self.model, padding=True
-        )
+        # data_collator = DataCollatorForSeq2Seq(
+        #     tokenizer.auto_tokenizer, model=self.model, padding=True
+        # )
+
+        data_collator = DataCollatorWithPadding(tokenizer=tokenizer.auto_tokenizer)
 
         trainer = auto_model(
             model=self.model,
             args=trainer.get("trainer").get("trainer_kwargs"),
-            train_dataset=train_data.remove_columns(["id"]),
-            eval_dataset=eval_data.remove_columns(["id"]),
+            train_dataset=train_data.remove_columns(["idx", "sentence"]),
+            eval_dataset=eval_data.remove_columns(["idx", "sentence"]),
             data_collator=data_collator,
             **self.custom_kwargs,
         )

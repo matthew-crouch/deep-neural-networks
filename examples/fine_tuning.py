@@ -23,13 +23,11 @@ but not the raw parameters.
 
 import pandas as pd
 import torch
-
-# from datasets import load_dataset
+from datasets import load_dataset
 from peft import LoraConfig
 from transformers import BitsAndBytesConfig
 
 from data.label_mapping import LABEL_MAPPING
-from src.dataset.web_scrape import convert_to_dataset_dict
 from src.llms.fine_tuning_pipeline import FineTunerPipeline, TaskType
 from src.llms.pipelines.custom_trainer import calculate_class_weights, compute_metrics
 
@@ -53,8 +51,9 @@ def fetch_fail_dataset():
 
 
 if __name__ == "__main__":
-    dataset = fetch_fail_dataset()
-    dataset = convert_to_dataset_dict(dataset)
+    # dataset = fetch_fail_dataset()
+    # dataset = convert_to_dataset_dict(dataset)
+    dataset = load_dataset("glue", "sst2")
 
     class_weights = calculate_class_weights(dataset["train"].to_pandas())
     class_weights_tensor = torch.tensor(class_weights, dtype=torch.float16)
@@ -62,16 +61,16 @@ if __name__ == "__main__":
     ft_pipeline = FineTunerPipeline(
         mode=TaskType.SEQUENCE_CLASSIFICATION,
         fine_tuning_config={
-            "ft_model_name": "llama-1b-fail-message-v2",
-            "text_column": "label",
-            "target_column": "text",
+            "ft_model_name": "bert-baseline",
+            "text_column": "sentence",
+            "target_column": "label",
             "per_device_train_batch_size": 1,
             "per_device_eval_batch_size": 1,
             "class_weights_tensor": class_weights_tensor,
             "compute_metrics": compute_metrics,
             "sample_size": 1000,
             "quantisation": {
-                "enabled": True,
+                "enabled": False,
                 "load_in_4bit": True,
                 "quantization_config": BitsAndBytesConfig(
                     load_in_4bit=True,
@@ -81,7 +80,7 @@ if __name__ == "__main__":
                 ),
             },
             "lora": {
-                "enabled": True,
+                "enabled": False,
                 "lora_config": LoraConfig(
                     r=8,
                     lora_alpha=32,

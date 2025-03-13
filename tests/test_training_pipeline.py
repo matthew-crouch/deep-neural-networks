@@ -5,6 +5,7 @@ import pytest
 from src.anomaly_detection.create_dataset import generate_anomaly_dataset
 from src.anomaly_detection.model_io import ModelIo
 from src.anomaly_detection.training_pipeline import TrainingPipeline
+from src.llms.model_zoo.lstm import LSTMClassifier
 
 
 def test_run_anomaly_detection():
@@ -24,7 +25,15 @@ def test_run_anomaly_detection():
         "early_stopping": True,
     }
 
-    training_pipeline = TrainingPipeline(configuration=config)
+    model = LSTMClassifier(
+        config["input_size"],
+        config["hidden_size"],
+        config["num_layers"],
+        config["output_size"],
+        config["dropout"],
+    )
+
+    training_pipeline = TrainingPipeline(model=model, configuration=config)
     training_pipeline.run(train_data=(x, y), val_data=(xval, yval))
 
 
