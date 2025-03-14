@@ -4,10 +4,10 @@ import torch
 
 from src.anomaly_detection.create_dataset import (
     generate_anomaly_dataset,
-)  # ,  preprocess_api_dataset,
+)
 from src.anomaly_detection.training_pipeline import TrainingPipeline
-from src.llms.model_zoo.models import AutoEncoder
-from torchtune.models.llama3_2 import llama3_2_3b, lora_llama3_2_3b
+from src.llms.model_zoo.models import AutoEncoder, MistralModel
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 if __name__ == "__main__":
     x, y = generate_anomaly_dataset(
@@ -30,7 +30,7 @@ if __name__ == "__main__":
         "early_stopping": True,
         "rank": 1,
         "world_size": torch.cuda.device_count(),
-        "quantise": {"enabled": False, "num_bits": 8},
+        "quantise": {"enabled": True},
     }
 
     # model = LSTMClassifier(
@@ -40,10 +40,12 @@ if __name__ == "__main__":
     #     config["output_size"],
     #     config["dropout"],
     # )
-    model = AutoEncoder(
-        config["input_size"],
-        config["dropout"],
-    )
+    # model = AutoEncoder(
+    #     config["input_size"],
+    #     config["dropout"],
+    # )
+    # model = AutoModelForCausalLM.from_pretrained("mistralai/Mistral-7B-v0.1")
+    model = MistralModel()
 
     training_pipeline = TrainingPipeline(model=model, configuration=config)
     training_pipeline.run(train_data=(x, y), val_data=(xval, yval))

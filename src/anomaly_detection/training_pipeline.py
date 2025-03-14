@@ -81,13 +81,17 @@ class TrainingPipeline:
         logger.info(f"Total Model Size in RAM: {round(model_size * 1e-9, 4)} GB")
         logger.info(f"Number of Parameters: {round(num_parameters * 1e-9, 4)} B")
 
+        breakpoint()
+
         if self.configuration.quantise.get("enabled"):
             self.model = torch.ao.quantization.quantize_dynamic(
                 self.model, {torch.nn.Linear}, dtype=torch.qint8
             )
 
             model_size, num_parameters = self.get_model_size_bytes(self.model)
-            logger.info(f"Total Model Size in RAM after Quantisation: {round(model_size * 1e-9, 4)} GB")
+            logger.info(
+                f"Total Model Size in RAM after Quantisation: {round(model_size * 1e-9, 4)} GB"
+            )
 
         self.model.to(self.device)
 
@@ -117,7 +121,11 @@ class TrainingPipeline:
         for buf in model.buffers():
             buffer_size += buf.numel() * buf.element_size()
 
-        return (param_size + buffer_size, model.num_parameters)
+        num_parameters = model.num_parameters
+        if type(num_parameters).__name__ == "method":
+            num_parameters = model.num_parameters()
+
+        return (param_size + buffer_size, num_parameters)
 
     def make_dataloader(self, data: tuple[torch.Tensor, torch.Tensor]):
         """Create a DataLoader from the input data.
