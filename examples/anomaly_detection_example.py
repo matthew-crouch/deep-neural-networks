@@ -6,8 +6,7 @@ from src.anomaly_detection.create_dataset import (
     generate_anomaly_dataset,
 )  # ,  preprocess_api_dataset,
 from src.anomaly_detection.training_pipeline import TrainingPipeline
-from src.llms.model_zoo.lstm import LSTMClassifier
-from src.llms.model_zoo.autoencoder import AutoEncoder
+from src.llms.model_zoo.models import AutoEncoder
 from torchtune.models.llama3_2 import llama3_2_3b, lora_llama3_2_3b
 
 if __name__ == "__main__":
