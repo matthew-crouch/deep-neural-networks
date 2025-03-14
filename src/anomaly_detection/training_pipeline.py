@@ -81,8 +81,6 @@ class TrainingPipeline:
         logger.info(f"Total Model Size in RAM: {round(model_size * 1e-9, 4)} GB")
         logger.info(f"Number of Parameters: {round(num_parameters * 1e-9, 4)} B")
 
-        breakpoint()
-
         if self.configuration.quantise.get("enabled"):
             self.model = torch.ao.quantization.quantize_dynamic(
                 self.model, {torch.nn.Linear}, dtype=torch.qint8
