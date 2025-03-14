@@ -40,30 +40,25 @@ class AutoEncoder(nn.Module):
         super().__init__()
 
         self.encoder = nn.Sequential(
-            nn.Linear(input_size, 3072*2),
+            nn.Linear(input_size, 3072),
             nn.ReLU(),
-            nn.Linear(3072*2, 1024*4),
+            nn.Linear(3072, 1024),
             nn.ReLU(),
-            nn.Linear(1024*4, 3072*2),
+            nn.Linear(1024, 3072),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(3072*2, 1024*4),
-        )
-
-        self.convolution = nn.Sequential(
-            nn.Conv2d(1024*4, 3072*2, 2),
-            nn.ReLU(),
+            nn.Linear(3072, 1024),
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(1024*4, 3072*2),
+            nn.Linear(1024, 3072),
             nn.Dropout(dropout),
             nn.ReLU(),
-            nn.Linear(3072*2, 1024*4),
+            nn.Linear(3072, 1024),
             nn.ReLU(),
-            nn.Linear(1024*4, 3072*2),
+            nn.Linear(1024, 3072),
             nn.ReLU(),
-            nn.Linear(3072*2, input_size),
+            nn.Linear(3072, input_size),
         )
 
         self.num_parameters = sum(p.numel() for p in self.parameters())
