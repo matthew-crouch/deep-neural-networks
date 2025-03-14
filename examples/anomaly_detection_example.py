@@ -6,8 +6,7 @@ from src.anomaly_detection.create_dataset import (
     generate_anomaly_dataset,
 )
 from src.anomaly_detection.training_pipeline import TrainingPipeline
-from src.llms.model_zoo.models import AutoEncoder, MistralModel
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from src.llms.model_zoo.models import MistralModel
 
 if __name__ == "__main__":
     x, y = generate_anomaly_dataset(
