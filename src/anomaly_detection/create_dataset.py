@@ -33,7 +33,8 @@ def generate_anomaly_dataset(
     """
     np.random.seed(random_state)
 
-    adjusted_n_samples = (n_samples // sequence_length) * sequence_length
+    if sequence_length > 0:
+        adjusted_n_samples = (n_samples // sequence_length) * sequence_length
 
     # Generate numerical data
     x, y = make_classification(
@@ -46,11 +47,12 @@ def generate_anomaly_dataset(
         random_state=random_state,
     )
 
-    # Reshape for LSTM format: (batch_size, sequence_length, input_size)
-    batch_size = adjusted_n_samples // sequence_length
-    x = x.reshape(batch_size, sequence_length, n_features)
+    if sequence_length > 0:
+        # Reshape for LSTM format: (batch_size, sequence_length, input_size)
+        batch_size = adjusted_n_samples // sequence_length
+        x = x.reshape(batch_size, sequence_length, n_features)
 
-    y = y.reshape(batch_size, sequence_length)
+        y = y.reshape(batch_size, sequence_length)
 
     x_tensor = torch.tensor(x, dtype=torch.float32)
     y_tensor = torch.tensor(y, dtype=torch.long)
