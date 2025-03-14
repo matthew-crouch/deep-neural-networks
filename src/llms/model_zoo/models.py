@@ -1,5 +1,3 @@
-"""Example of How to build a simple LSTM for anomaly detection."""
-
 import torch
 from torch import nn
 
@@ -36,3 +34,41 @@ class LSTMClassifier(nn.Module):
         output = self.linear_1(output[:, -1, :])
 
         return output
+
+class AutoEncoder(nn.Module):
+    def __init__(self, input_size: torch.tensor, dropout: float):
+        super().__init__()
+
+        self.encoder = nn.Sequential(
+            nn.Linear(input_size, 3072*2),
+            nn.ReLU(),
+            nn.Linear(3072*2, 1024*4),
+            nn.ReLU(),
+            nn.Linear(1024*4, 3072*2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(3072*2, 1024*4),
+        )
+
+        self.convolution = nn.Sequential(
+            nn.Conv2d(1024*4, 3072*2, 2),
+            nn.ReLU(),
+        )
+
+        self.decoder = nn.Sequential(
+            nn.Linear(1024*4, 3072*2),
+            nn.Dropout(dropout),
+            nn.ReLU(),
+            nn.Linear(3072*2, 1024*4),
+            nn.ReLU(),
+            nn.Linear(1024*4, 3072*2),
+            nn.ReLU(),
+            nn.Linear(3072*2, input_size),
+        )
+
+        self.num_parameters = sum(p.numel() for p in self.parameters())
+
+    def forward(self, x: torch.tensor) -> torch.tensor:
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x

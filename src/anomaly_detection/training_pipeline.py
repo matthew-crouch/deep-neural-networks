@@ -86,8 +86,8 @@ class TrainingPipeline:
                 self.model, {torch.nn.Linear}, dtype=torch.qint8
             )
 
-        model_size, num_parameters = self.get_model_size_bytes(self.model)
-        logger.info(f"Total Model Size in RAM after Quantisation: {round(model_size * 1e-9, 4)} GB")
+            model_size, num_parameters = self.get_model_size_bytes(self.model)
+            logger.info(f"Total Model Size in RAM after Quantisation: {round(model_size * 1e-9, 4)} GB")
 
         self.model.to(self.device)
 
@@ -141,9 +141,12 @@ class TrainingPipeline:
         :return: Loss.
         """
         outputs = self.model(data)
-        ## We only select the last timestep (not generalised for all solutions)
-        # This will only predict one label per sequence, not one per timestep.
-        loss = self.criterion(outputs, labels[:, -1])
+        if len(labels.shape) > 1:
+            ## We only select the last timestep (not generalised for all solutions)
+            # This will only predict one label per sequence, not one per timestep.
+            loss = self.criterion(outputs, labels[:, -1])
+        else:
+            loss = self.criterion(outputs, labels)
         loss = -torch.log(torch.clamp(loss, min=1e-7))
         return loss
 
